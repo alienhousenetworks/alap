@@ -9,8 +9,12 @@ from app.core.config import settings
 from app.core.security import create_token, decode_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.auth_session import AuthSession
+from app.models.character import Character
+from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
 from app.schemas.auth import DeleteAccountRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.character import CharacterResponse
+from app.schemas.conversation import ConversationResponse, MessageResponse
 
 router = APIRouter(prefix="/auth")
 
@@ -97,3 +101,33 @@ async def delete_account(body: DeleteAccountRequest, db: AsyncSession = Depends(
     await db.delete(user)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/me/export")
+async def export_account_data(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _: None = Depends(rate_limit(5, 60)),
+):
+    characters = list((await db.scalars(
+        select(Character).where(Character.owner_id == user.id).order_by(Character.created_at.asc())
+    )).all())
+    conversations = list((await db.scalars(
+        select(Conversation).where(Conversation.user_id == user.id).order_by(Conversation.created_at.asc())
+    )).all())
+    conversation_ids = [item.id for item in conversations]
+    messages = []
+    if conversation_ids:
+        messages = list((await db.scalars(
+            select(ConversationMessage)
+            .where(ConversationMessage.conversation_id.in_(conversation_ids))
+            .order_by(ConversationMessage.created_at.asc(), ConversationMessage.id.asc())
+        )).all())
+    return {
+        "export_format_version": 1,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "account": UserResponse.model_validate(user).model_dump(mode="json"),
+        "characters": [CharacterResponse.model_validate(item).model_dump(mode="json") for item in characters],
+        "conversations": [ConversationResponse.model_validate(item).model_dump(mode="json") for item in conversations],
+        "messages": [MessageResponse.model_validate(item).model_dump(mode="json") for item in messages],
+    }
