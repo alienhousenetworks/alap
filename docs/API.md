@@ -25,6 +25,7 @@ Access tokens are short-lived JWTs. Refresh-token identifiers are persisted and 
 - `GET /characters/{id}` — owner or approved-public access.
 - `PATCH /characters/{id}` — owner update.
 - `DELETE /characters/{id}` — owner deletion.
+- `POST /characters/{id}/report` — submit one open safety report per account and character.
 
 A user cannot publish a character directly. Public visibility requires administrator approval.
 
@@ -41,6 +42,8 @@ The current chat route is synchronous and uses the most recent 20 messages. Gene
 - `POST /admin/characters/{id}/approve` — approve; publishes only if visibility is public.
 - `POST /admin/characters/{id}/reject` — reject with a reason.
 - `GET /admin/audit/moderation` — read-only moderation decision history, newest first.
+- `GET /admin/reports?status=open` — user safety reports awaiting review.
+- `POST /admin/reports/{id}/resolve` — resolve or dismiss a report; decision is added to the moderation audit log.
 
 Bootstrap an administrator only from a trusted operator shell after creating the account:
 `cd services/api && python scripts/promote_admin.py admin@example.com`
