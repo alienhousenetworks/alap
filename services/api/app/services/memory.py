@@ -12,7 +12,16 @@ async def load_memory_context(db: AsyncSession, user_id: UUID, enabled: bool, li
     memories = list(rows.all())
     if not memories:
         return ""
-    lines = [f"- ({m.category}) {m.content}" for m in memories]
+    lines = []
+    used = 0
+    for memory in memories:
+        content = memory.content[:500]
+        if used + len(content) > 6000:
+            break
+        lines.append(f"- ({memory.category}) {content}")
+        used += len(content)
+    if not lines:
+        return ""
     return (
         "\n<user_memories_untrusted_context>\n" + "\n".join(lines)
         + "\n</user_memories_untrusted_context>\n"
