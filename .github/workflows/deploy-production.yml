@@ -52,5 +52,5 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
           PATH_ON_HOST: ${{ vars.DEPLOY_PATH }}
         run: |
-          ssh "$USER@$HOST" "cd '$PATH_ON_HOST/infra' && test -f .env.prod && docker compose --env-file .env.prod -f docker-compose.prod.yml config -q && docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d --remove-orphans"
+          ssh "$USER@$HOST" "cd '$PATH_ON_HOST/infra' && test -f .env.prod && docker compose --env-file .env.prod -f docker-compose.prod.yml config -q && if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres pg_isready -U alap -d alap >/dev/null 2>&1; then bash scripts/backup.sh; else echo 'Initial deployment: no existing database backup required'; fi && docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d --remove-orphans"
           ssh "$USER@$HOST" "cd '$PATH_ON_HOST/infra' && API_DOMAIN=\$(grep '^API_DOMAIN=' .env.prod | cut -d= -f2-) && for i in \$(seq 1 30); do curl -fsS \"https://\$API_DOMAIN/health/ready\" && exit 0; sleep 10; done; echo 'API readiness check timed out' >&2; docker compose --env-file .env.prod -f docker-compose.prod.yml ps; exit 1"
