@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.protocol import ChatMessage
 from app.ai.registry import build_provider
@@ -38,12 +38,20 @@ async def list_messages(conversation_id: UUID, limit: int = Query(default=50, ge
     conversation = await db.scalar(select(Conversation).where(Conversation.id == conversation_id, Conversation.user_id == user.id))
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    query = select(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id).order_by(ConversationMessage.created_at.desc()).limit(limit)
+    query = select(ConversationMessage).where(ConversationMessage.conversation_id == conversation_id).order_by(ConversationMessage.created_at.desc(), ConversationMessage.id.desc()).limit(limit)
     if before_id is not None:
         cursor = await db.get(ConversationMessage, before_id)
         if cursor is None or cursor.conversation_id != conversation_id:
             raise HTTPException(status_code=400, detail="Invalid message cursor")
-        query = query.where(ConversationMessage.created_at < cursor.created_at)
+        query = query.where(
+            or_(
+                ConversationMessage.created_at < cursor.created_at,
+                and_(
+                    ConversationMessage.created_at == cursor.created_at,
+                    ConversationMessage.id < cursor.id,
+                ),
+            )
+        )
     rows = list((await db.scalars(query)).all())
     return list(reversed(rows))
 
@@ -169,9 +177,13 @@ async def send_message(
         )
     finally:
         # Compare-and-delete prevents releasing a lock acquired by another request after expiry.
-        await redis.eval(
-            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-            1,
-            lock_key,
-            lock_token,
-        )
+        try:
+            await redis.eval(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                1,
+                lock_key,
+                lock_token,
+            )
+        except Exception:
+            # The lease expires automatically; don't mask the original request result.
+            pass
