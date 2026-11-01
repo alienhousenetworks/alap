@@ -34,7 +34,7 @@ A user cannot publish a character directly. Public visibility requires administr
 - `GET /conversations/{id}/messages` — paginated message history.
 - `POST /conversations/{id}/messages` — generate and persist a user/assistant turn using the configured AI provider.
 
-The current chat route is synchronous and uses the most recent 20 messages. User input and generated output are checked through the OpenAI Moderation API; if moderation is unavailable, the turn fails closed and is not persisted. Streaming, durable long-term memory, and provider failover are not implemented yet.
+The current chat route is synchronous and uses the most recent 20 messages. Generation adapters support OpenAI, Anthropic and Google Gemini. User input, character profile data and generated output are checked through the OpenAI Moderation API; therefore, every generation provider requires an OpenAI moderation key. If moderation is unavailable, the turn fails closed and is not persisted. Streaming, durable long-term memory, and provider failover are not implemented yet.
 
 ## Administration
 - `GET /admin/moderation/characters?status=pending` — admin moderation queue.
