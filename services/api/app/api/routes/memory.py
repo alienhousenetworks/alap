@@ -124,6 +124,8 @@ async def update_memory(memory_id: UUID, body: MemoryUpdate, db: AsyncSession = 
     for field in ("content", "category", "enabled"):
         value = getattr(body, field)
         if value is not None:
+            if field == "content" and len(value.strip()) < 2:
+                raise HTTPException(status_code=422, detail="Memory content cannot be empty")
             setattr(row, field, value.strip() if field == "content" else value)
     await db.commit()
     return {"id": str(row.id), "content": row.content, "category": row.category, "enabled": row.enabled}
