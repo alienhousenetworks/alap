@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Character = { id: string; name: string; description: string; greeting: string; moderation_status: string; visibility: string; owner_id: string | null };
+type AuditItem = { id: string; actor_user_id: string | null; character_id: string | null; action: string; reason: string | null; created_at: string };
 
 export default function AdminConsole() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,8 @@ export default function AdminConsole() {
   const [items, setItems] = useState<Character[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<"queue" | "audit">("queue");
+  const [audit, setAudit] = useState<AuditItem[]>([]);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/moderation", { cache: "no-store" });
@@ -22,6 +25,12 @@ export default function AdminConsole() {
   }, []);
 
   useEffect(() => { load().catch((e: Error) => setError(e.message)); }, [load]);
+
+  async function loadAudit() {
+    const response = await fetch("/api/admin/audit", { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load moderation audit history.");
+    setAudit(await response.json());
+  }
 
   async function login(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
@@ -64,13 +73,25 @@ export default function AdminConsole() {
       <button disabled={busy} type="submit">{busy ? "Signing in…" : "Sign in"}</button>
       <p style={{color:"#9299a5",fontSize:12}}>Access is enforced by the API administrator role. This console does not grant privileges to ordinary accounts.</p>
     </form> : <section style={{marginTop:30}}>
-      <h2>Character moderation queue</h2>
-      <p style={{color:"#9299a5"}}>{items.length} pending submissions</p>
-      {items.length === 0 ? <p style={{color:"#9299a5",padding:24,background:"#151a22",borderRadius:12}}>No characters awaiting review.</p> : items.map(item=><article key={item.id} style={{padding:22,marginBottom:14,border:"1px solid #ffffff20",borderRadius:14,background:"#151a22"}}>
-        <div style={{display:"flex",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}><div><small style={{color:"#c5f36a"}}>{item.visibility.toUpperCase()} · {item.moderation_status.toUpperCase()}</small><h3>{item.name}</h3></div><code>{item.id.slice(0,8)}</code></div>
-        <p style={{color:"#c2c6ce"}}>{item.description}</p><blockquote style={{margin:0,padding:12,borderLeft:"2px solid #c5f36a",color:"#9299a5"}}>{item.greeting || "No opening greeting"}</blockquote>
-        <div style={{display:"flex",gap:10,marginTop:18}}><button disabled={busy} onClick={()=>decide(item.id,"approve")}>Approve</button><button disabled={busy} onClick={()=>decide(item.id,"reject")}>Reject</button></div>
-      </article>)}
+      <div style={{display:"flex",gap:10,marginBottom:24}}>
+        <button onClick={()=>setTab("queue")}>Pending queue ({items.length})</button>
+        <button onClick={()=>{setTab("audit");loadAudit().catch((e:Error)=>setError(e.message));}}>Audit history</button>
+      </div>
+      {tab === "queue" ? <>
+        <h2>Character moderation queue</h2>
+        {items.length === 0 ? <p style={{color:"#9299a5",padding:24,background:"#151a22",borderRadius:12}}>No characters awaiting review.</p> : items.map(item=><article key={item.id} style={{padding:22,marginBottom:14,border:"1px solid #ffffff20",borderRadius:14,background:"#151a22"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}><div><small style={{color:"#c5f36a"}}>{item.visibility.toUpperCase()} · {item.moderation_status.toUpperCase()}</small><h3>{item.name}</h3></div><code>{item.id.slice(0,8)}</code></div>
+          <p style={{color:"#c2c6ce"}}>{item.description}</p><blockquote style={{margin:0,padding:12,borderLeft:"2px solid #c5f36a",color:"#9299a5"}}>{item.greeting || "No opening greeting"}</blockquote>
+          <div style={{display:"flex",gap:10,marginTop:18}}><button disabled={busy} onClick={()=>decide(item.id,"approve")}>Approve</button><button disabled={busy} onClick={()=>decide(item.id,"reject")}>Reject</button></div>
+        </article>)}
+      </> : <>
+        <h2>Moderation audit history</h2>
+        {audit.length === 0 ? <p style={{color:"#9299a5"}}>No moderation actions recorded.</p> : audit.map(entry=><article key={entry.id} style={{padding:18,marginBottom:10,border:"1px solid #ffffff20",borderRadius:12,background:"#151a22"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{entry.action.toUpperCase()}</strong><small style={{color:"#9299a5"}}>{new Date(entry.created_at).toLocaleString()}</small></div>
+          <p style={{color:"#c2c6ce"}}>{entry.reason || "No reason supplied"}</p>
+          <small style={{color:"#9299a5"}}>Character: {entry.character_id || "Deleted"} · Moderator: {entry.actor_user_id || "Deleted"}</small>
+        </article>)}
+      </>}
     </section>}
   </main>;
 }
