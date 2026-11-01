@@ -16,7 +16,7 @@ Memory is inserted into the character prompt as untrusted context, never as priv
 ## Image and voice generation
 
 - `POST /api/v1/media/images`: OpenAI image generation, bounded size/aspect ratio, input moderation and image-aware moderation of generated output.
-- `POST /api/v1/media/voice`: OpenAI text-to-speech after text moderation.
+- `POST /api/v1/media/voice`: OpenAI text-to-speech after text moderation using standard synthetic voices; this is not voice cloning or a custom character voice model.
 - `GET /api/v1/media`: list the authenticated user's media with short-lived signed links.
 - `DELETE /api/v1/media/{id}`: delete the private object and metadata.
 
