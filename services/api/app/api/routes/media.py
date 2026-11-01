@@ -121,8 +121,8 @@ async def list_media(db: AsyncSession = Depends(get_db), user: User = Depends(ge
     storage = ObjectStorage() if assets else None
     result = []
     for item in assets:
-        result.append({"id": str(item.id), "kind": item.kind, "mime_type": item.mime_type,
-                       "size_bytes": item.size_bytes, "created_at": item.created_at,
+        result.append({"id": str(item.id), "kind": item.kind, "conversation_id": str(item.conversation_id) if item.conversation_id else None,
+                       "mime_type": item.mime_type, "size_bytes": item.size_bytes, "created_at": item.created_at,
                        "url": await storage.signed_get(item.object_key) if storage else None, "url_expires_in": 300})
     return result
 
