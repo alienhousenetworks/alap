@@ -39,3 +39,8 @@ def rate_limit(max_requests: int, window_seconds: int):
         if count > max_requests:
             raise HTTPException(status_code=429, detail="Too many requests. Please try again later.", headers={"Retry-After": str(max(1, ttl))})
     return dependency
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Administrator access required")
+    return user
