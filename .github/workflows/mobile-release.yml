@@ -1,5 +1,7 @@
 name: Signed mobile release
 'on':
+  push:
+    branches: [production/ai-memory-media-ops]
   workflow_dispatch:
     inputs:
       version:
@@ -10,6 +12,7 @@ permissions:
   contents: read
 jobs:
   android:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +81,7 @@ jobs:
           if-no-files-found: error
 
   ios:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
