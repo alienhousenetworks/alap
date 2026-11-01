@@ -541,7 +541,7 @@ class _MemorySettingsScreenState extends State<MemorySettingsScreen> {
       if (_enabled!) ...[
         const Text('Saved memories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         if (_items.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('No saved memories yet.')),
-        for (final item in _items) Card(child: ListTile(onTap: () => _edit(item['id'] as String, item['content'] as String), title: Text(item['content'] as String), subtitle: Text('${item['category']} · Tap to edit'), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(item['id'] as String)))),
+        for (final item in _items) Card(child: ListTile(onTap: () => _edit(item['id'] as String, item['content'] as String), title: Text(item['content'] as String), subtitle: Text("${item['category']} · Tap to edit"), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(item['id'] as String)))),
         TextButton.icon(onPressed: _items.isEmpty ? null : () async { await widget.repository.clear(); await _load(); }, icon: const Icon(Icons.delete_sweep_outlined), label: const Text('Delete all memories')),
       ] else const Padding(padding: EdgeInsets.all(12), child: Text('Memory is off. Existing memories are retained but are not used in chats. Turn it on to use them again.')),
     ]),
