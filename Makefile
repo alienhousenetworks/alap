@@ -1,4 +1,4 @@
-.PHONY: infra-up infra-down api-install api-dev api-test api-migrate api-revision web-install web-dev web-build
+.PHONY: infra-up infra-down api-install api-dev api-test api-migrate api-revision api-promote-admin web-install web-dev web-build
 
 infra-up:
 	docker compose -f infra/docker-compose.yml up -d
@@ -20,6 +20,9 @@ api-migrate:
 
 api-revision:
 	cd services/api && alembic revision --autogenerate -m "$(message)"
+
+api-promote-admin:
+	cd services/api && python scripts/promote_admin.py "$(email)"
 
 web-install:
 	npm install
