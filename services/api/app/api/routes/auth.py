@@ -10,7 +10,7 @@ from app.core.security import create_token, decode_token, hash_password, verify_
 from app.db.session import get_db
 from app.models.auth_session import AuthSession
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.auth import DeleteAccountRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/auth")
 
@@ -89,3 +89,11 @@ async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db), user:
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)):
     return user
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(body: DeleteAccountRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=403, detail="Password confirmation failed")
+    await db.delete(user)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
