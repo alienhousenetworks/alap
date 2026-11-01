@@ -17,7 +17,7 @@ async def discover_characters(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    query = select(Character).where(Character.is_published.is_(True), Character.visibility == "public").order_by(Character.created_at.desc()).offset(offset).limit(limit)
+    query = select(Character).where(Character.is_published.is_(True), Character.visibility == "public", Character.moderation_status == "approved").order_by(Character.created_at.desc()).offset(offset).limit(limit)
     return list((await db.scalars(query)).all())
 
 @router.get("/mine", response_model=list[CharacterResponse])
@@ -38,7 +38,7 @@ async def create_character(body: CharacterCreate, db: AsyncSession = Depends(get
 @router.get("/{character_id}", response_model=CharacterResponse)
 async def get_character(character_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     character = await db.get(Character, character_id)
-    if character is None or not (character.owner_id == user.id or (character.is_published and character.visibility == "public")):
+    if character is None or not (character.owner_id == user.id or (character.is_published and character.visibility == "public" and character.moderation_status == "approved")):
         raise HTTPException(status_code=404, detail="Character not found")
     return character
 
