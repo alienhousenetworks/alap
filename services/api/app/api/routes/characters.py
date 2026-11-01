@@ -2,11 +2,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_current_user
+from app.api.deps import account_rate_limit, get_current_user, rate_limit
 from app.db.session import get_db
 from app.models.character import Character
+from app.models.character_report import CharacterReport
 from app.models.user import User
 from app.schemas.character import CharacterCreate, CharacterUpdate, CharacterResponse
+from app.schemas.moderation import CharacterReportCreate, CharacterReportResponse
 
 router = APIRouter(prefix="/characters")
 
@@ -34,6 +36,36 @@ async def create_character(body: CharacterCreate, db: AsyncSession = Depends(get
     await db.commit()
     await db.refresh(character)
     return character
+
+@router.post("/{character_id}/report", response_model=CharacterReportResponse, status_code=status.HTTP_201_CREATED)
+async def report_character(
+    character_id: UUID,
+    body: CharacterReportCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _ip_limit: None = Depends(rate_limit(5, 60)),
+    _account_limit: None = Depends(account_rate_limit(5, 60)),
+):
+    character = await db.get(Character, character_id)
+    if (
+        character is None
+        or character.owner_id == user.id
+        or not character.is_published
+        or character.visibility != "public"
+        or character.moderation_status != "approved"
+    ):
+        raise HTTPException(status_code=404, detail="Character not found")
+    report = CharacterReport(
+        reporter_user_id=user.id,
+        character_id=character.id,
+        reason=body.reason,
+        details=body.details.strip() or None,
+    )
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+    return report
+
 
 @router.get("/{character_id}", response_model=CharacterResponse)
 async def get_character(character_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
