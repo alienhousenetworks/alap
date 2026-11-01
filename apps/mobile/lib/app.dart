@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'core/network/api_client.dart';
 import 'features/auth/auth_repository.dart';
@@ -366,6 +368,18 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.auth, required this.onLogout});
   final AuthRepository auth;
   final VoidCallback onLogout;
+  Future<void> _exportData(BuildContext context) async {
+    try {
+      final data = await auth.exportData();
+      await Clipboard.setData(ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Your account export JSON was copied to the clipboard.')));
+      }
+    } catch (_) {
+      if (context.mounted) _showError(context, 'Could not export your account data.');
+    }
+  }
+
   Future<void> _deleteAccount(BuildContext context) async {
     final controller = TextEditingController();
     final password = await showDialog<String>(
@@ -402,6 +416,7 @@ class ProfileScreen extends StatelessWidget {
     const SizedBox(height: 18), const Text('Your ALAP account', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
     const SizedBox(height: 24),
     ListTile(leading: const Icon(Icons.logout), title: const Text('Sign out'), onTap: () async { await auth.logout(); onLogout(); }),
+    ListTile(leading: const Icon(Icons.download_outlined), title: const Text('Export my data'), subtitle: const Text('Copy your account, characters and conversations as JSON.'), onTap: () => _exportData(context)),
     ListTile(
       leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
       title: const Text('Delete account and data', style: TextStyle(color: Colors.redAccent)),
