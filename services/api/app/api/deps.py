@@ -1,12 +1,15 @@
 from uuid import UUID
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_token
 from app.db.session import get_db
 from app.models.user import User
+
 bearer = HTTPBearer(auto_error=False)
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer), db: AsyncSession = Depends(get_db)) -> User:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
@@ -19,9 +22,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials | None = De
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid or inactive account")
     return user
-
-from fastapi import Request
-from redis.exceptions import RedisError
 
 def rate_limit(max_requests: int, window_seconds: int):
     async def dependency(request: Request):
