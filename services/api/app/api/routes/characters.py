@@ -29,7 +29,13 @@ async def my_characters(db: AsyncSession = Depends(get_db), user: User = Depends
     return list(result.all())
 
 @router.post("", response_model=CharacterResponse, status_code=status.HTTP_201_CREATED)
-async def create_character(body: CharacterCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def create_character(
+    body: CharacterCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _ip_limit: None = Depends(rate_limit(10, 60)),
+    _account_limit: None = Depends(account_rate_limit(10, 60)),
+):
     if len(body.personality) > 30 or any(len(k) > 40 or len(v) > 500 for k, v in body.personality.items()):
         raise HTTPException(status_code=422, detail="Personality fields exceed allowed limits")
     character = Character(owner_id=user.id, **body.model_dump())
