@@ -140,7 +140,7 @@ jobs:
           s = s.replace('DEVELOPMENT_TEAM = "";', f'DEVELOPMENT_TEAM = {os.environ["TEAM"]};')
           s = s.replace('PROVISIONING_PROFILE_SPECIFIER = "";', f'PROVISIONING_PROFILE_SPECIFIER = "{os.environ["PROFILE_NAME"]}";')
           s = s.replace('CODE_SIGN_IDENTITY = "Apple Development";', 'CODE_SIGN_IDENTITY = "Apple Distribution";')
-          s = s.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
+          s = s.replace('CODE_SIGN_STYLE = Automatic;', f'CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = "Apple Distribution"; PROVISIONING_PROFILE_SPECIFIER = "{os.environ["PROFILE_NAME"]}";')
           p.write_text(s)
           PY
           cat > ios/ExportOptions.plist <<PLIST
