@@ -1,0 +1,36 @@
+{$API_DOMAIN} {
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+    @metrics path /metrics
+    respond @metrics 404
+    reverse_proxy api:8000
+}
+{$WEB_DOMAIN} {
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+    reverse_proxy web:3000
+}
+{$ADMIN_DOMAIN} {
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        X-Robots-Tag "noindex, nofollow"
+        -Server
+    }
+    # Add a VPN/office allowlist before opening this host to the public internet.
+    reverse_proxy admin:3001
+}
