@@ -29,3 +29,18 @@ jobs:
           node-version: "22"
       - run: npm install
       - run: npm run web:build
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter build apk --debug --dart-define=API_BASE_URL=https://api.example.com
