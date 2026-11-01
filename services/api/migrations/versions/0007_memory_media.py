@@ -47,7 +47,6 @@ def upgrade():
         sa.Column("voice_characters", sa.BigInteger(), nullable=False, server_default="0"),
         sa.UniqueConstraint("user_id", "usage_date", name="uq_media_daily_user_date"),
     )
-    op.create_index("ix_media_daily_usage_user_id", "media_daily_usage", ["user_id"])
     op.create_table(
         "media_monthly_budgets",
         sa.Column("month", sa.String(7), primary_key=True),
@@ -57,7 +56,6 @@ def upgrade():
 
 def downgrade():
     op.drop_table("media_monthly_budgets")
-    op.drop_index("ix_media_daily_usage_user_id", table_name="media_daily_usage")
     op.drop_table("media_daily_usage")
     op.drop_index("ix_media_assets_conversation_id", table_name="media_assets")
     op.drop_index("ix_media_assets_user_id", table_name="media_assets")
