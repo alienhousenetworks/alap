@@ -323,9 +323,13 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _load() async {
     try {
       final data = await widget.repository.messages(_id);
-      final mediaRepo = MediaRepository(widget.repository.api);
-      final media = await mediaRepo.list();
-      final usage = await mediaRepo.usage();
+      var media = <Map<String, dynamic>>[];
+      Map<String, dynamic>? usage;
+      try {
+        final mediaRepo = MediaRepository(widget.repository.api);
+        media = await mediaRepo.list();
+        usage = await mediaRepo.usage();
+      } catch (_) { /* Media outages must not block chat history. */ }
       if (mounted) setState(() {
         _messages = data;
         _generatedMedia
