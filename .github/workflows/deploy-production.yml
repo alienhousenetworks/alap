@@ -1,5 +1,5 @@
 name: Deploy ALAP production
-on:
+'on':
   workflow_dispatch:
     inputs:
       confirm:
