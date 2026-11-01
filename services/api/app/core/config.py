@@ -19,6 +19,19 @@ class Settings(BaseSettings):
     google_ai_api_key: str = ""
     ai_default_provider: str = ""
     ai_default_model: str = ""
+    image_generation_model: str = "gpt-image-1"
+    voice_generation_model: str = "gpt-4o-mini-tts"
+    media_max_bytes: int = 20000000
+    media_daily_image_limit: int = 5
+    media_daily_voice_characters: int = 10000
+    media_monthly_budget_usd: float = 0
+    media_image_estimated_cost_usd: float = 0
+    media_voice_estimated_cost_per_1k_chars_usd: float = 0
+    object_storage_endpoint: str = ""
+    object_storage_region: str = "auto"
+    object_storage_bucket: str = ""
+    object_storage_access_key: str = ""
+    object_storage_secret_key: str = ""
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -50,6 +63,17 @@ class Settings(BaseSettings):
                 raise ValueError("AI_DEFAULT_PROVIDER must be openai, anthropic or google")
             if not provider_keys[self.ai_default_provider.lower()]:
                 raise ValueError("The selected AI provider API key is not configured")
+            storage_values = (self.object_storage_bucket, self.object_storage_access_key, self.object_storage_secret_key)
+            if not all(storage_values):
+                raise ValueError("Production requires private S3-compatible object storage")
+            if self.object_storage_endpoint and not self.object_storage_endpoint.startswith("https://"):
+                raise ValueError("Production object storage endpoint must use HTTPS")
+            if self.media_monthly_budget_usd <= 0 or self.media_image_estimated_cost_usd <= 0 or self.media_voice_estimated_cost_per_1k_chars_usd <= 0:
+                raise ValueError("Production requires positive media monthly budget and provider cost estimates")
+        if not 1 <= self.media_daily_image_limit <= 100 or not 100 <= self.media_daily_voice_characters <= 100000:
+            raise ValueError("Media daily limits are outside safe bounds")
+        if not 1000000 <= self.media_max_bytes <= 100000000:
+            raise ValueError("MEDIA_MAX_BYTES must be between 1 MB and 100 MB")
         if not 5 <= self.access_token_ttl_minutes <= 60:
             raise ValueError("ACCESS_TOKEN_TTL_MINUTES must be between 5 and 60")
         if not 1 <= self.refresh_token_ttl_days <= 90:
