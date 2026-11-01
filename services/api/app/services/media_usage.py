@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 from sqlalchemy import select
@@ -13,7 +13,7 @@ class MediaBudgetExceeded(Exception): pass
 
 @dataclass(frozen=True)
 class MediaReservation:
-    usage_date: object
+    usage_date: date
     month: str
     kind: str
     voice_characters: int
