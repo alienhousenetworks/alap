@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -5,10 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_admin
 from app.db.session import get_db
 from app.models.character import Character
+from app.models.character_report import CharacterReport
 from app.models.moderation_audit import ModerationAuditLog
 from app.models.user import User
 from app.schemas.character import CharacterResponse
-from app.schemas.moderation import ModerationAuditResponse, ModerationDecision
+from app.schemas.moderation import CharacterReportResponse, ModerationAuditResponse, ModerationDecision, ReportResolution
 
 router = APIRouter(prefix="/admin")
 
@@ -43,6 +45,51 @@ async def moderation_audit(
         .limit(limit)
     )
     return list(rows.all())
+
+
+@router.get("/reports", response_model=list[CharacterReportResponse])
+async def character_reports(
+    status: str = Query(default="open", pattern="^(open|resolved|dismissed)$"),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    rows = await db.scalars(
+        select(CharacterReport)
+        .where(CharacterReport.status == status)
+        .order_by(CharacterReport.created_at.asc(), CharacterReport.id.asc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(rows.all())
+
+
+@router.post("/reports/{report_id}/resolve", response_model=CharacterReportResponse)
+async def resolve_character_report(
+    report_id: UUID,
+    body: ReportResolution,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    report = await db.get(CharacterReport, report_id, with_for_update=True)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if report.status != "open":
+        raise HTTPException(status_code=409, detail="Report has already been reviewed")
+    report.status = body.status
+    report.resolution_note = body.note.strip() or None
+    report.reviewed_by = admin.id
+    report.reviewed_at = datetime.now(timezone.utc)
+    db.add(ModerationAuditLog(
+        actor_user_id=admin.id,
+        character_id=report.character_id,
+        action=f"report_{body.status}",
+        reason=report.resolution_note or f"Report {body.status}",
+    ))
+    await db.commit()
+    await db.refresh(report)
+    return report
 
 
 @router.post("/characters/{character_id}/approve", response_model=CharacterResponse)
