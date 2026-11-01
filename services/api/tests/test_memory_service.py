@@ -6,7 +6,9 @@ class Rows:
     def all(self): return self.rows
 
 class FakeDB:
-    def __init__(self, rows): self.rows = rows; self.calls = 0
+    def __init__(self, rows):
+        self.rows = rows
+        self.calls = 0
     async def scalars(self, _query):
         self.calls += 1
         return Rows(self.rows)
