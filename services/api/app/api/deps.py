@@ -46,3 +46,29 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Administrator access required")
     return user
+
+
+def account_rate_limit(max_requests: int, window_seconds: int):
+    async def dependency(
+        request: Request,
+        user: User = Depends(get_current_user),
+    ):
+        route = request.scope.get("route")
+        route_key = getattr(route, "path", request.url.path)
+        key = f"ratelimit:user:{user.id}:{route_key}"
+        try:
+            pipe = request.app.state.redis.pipeline()
+            pipe.incr(key)
+            pipe.ttl(key)
+            count, ttl = await pipe.execute()
+            if count == 1 or ttl < 0:
+                await request.app.state.redis.expire(key, window_seconds)
+        except RedisError:
+            raise HTTPException(status_code=503, detail="Rate limiting service is unavailable") from None
+        if count > max_requests:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please try again later.",
+                headers={"Retry-After": str(max(1, ttl))},
+            )
+    return dependency
