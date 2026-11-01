@@ -123,6 +123,53 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     }
   }
 
+  Future<void> _report(Map<String, dynamic> character) async {
+    final details = TextEditingController();
+    var reason = 'other';
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Report character'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: reason,
+                decoration: const InputDecoration(labelText: 'Reason'),
+                items: const [
+                  DropdownMenuItem(value: 'sexual_content', child: Text('Sexual content')),
+                  DropdownMenuItem(value: 'minor_safety', child: Text('Minor safety')),
+                  DropdownMenuItem(value: 'violence', child: Text('Violence or harm')),
+                  DropdownMenuItem(value: 'harassment', child: Text('Harassment')),
+                  DropdownMenuItem(value: 'impersonation', child: Text('Impersonation')),
+                  DropdownMenuItem(value: 'spam', child: Text('Spam')),
+                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                ],
+                onChanged: (value) => setDialogState(() => reason = value ?? 'other'),
+              ),
+              const SizedBox(height: 12),
+              TextField(controller: details, maxLines: 3, maxLength: 2000, decoration: const InputDecoration(labelText: 'Additional details (optional)')),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, {'reason': reason, 'details': details.text}), child: const Text('Submit report')),
+          ],
+        ),
+      ),
+    );
+    final detailText = details.text;
+    details.dispose();
+    if (result == null || !mounted) return;
+    try {
+      await widget.characters.report(character['id'] as String, reason: result['reason']!, details: detailText);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report submitted. Thank you for helping keep ALAP safe.')));
+    } catch (_) {
+      if (mounted) _showError(context, 'Could not submit this report. You may already have an open report.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: () async => _reload(),
@@ -146,7 +193,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               leading: const CircleAvatar(backgroundColor: Color(0xFF293342), child: Icon(Icons.auto_awesome, color: Color(0xFFC5F36A))),
               title: Text(item['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Padding(padding: const EdgeInsets.only(top: 6), child: Text(item['description'] as String? ?? '', maxLines: 3, overflow: TextOverflow.ellipsis)),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: IconButton(
+                tooltip: 'Report character',
+                icon: const Icon(Icons.flag_outlined),
+                onPressed: () => _report(item),
+              ),
               onTap: () => _start(item),
             ),
           ),
