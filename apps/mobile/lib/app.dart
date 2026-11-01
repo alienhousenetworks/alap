@@ -320,8 +320,17 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() { _input.dispose(); _scroll.dispose(); unawaited(_audioPlayer.dispose()); super.dispose(); }
 
   Future<void> _load() async {
-    try { final data = await widget.repository.messages(_id); if (mounted) setState(() { _messages = data; _loading = false; }); }
-    catch (_) { if (mounted) setState(() => _loading = false); }
+    try {
+      final data = await widget.repository.messages(_id);
+      final media = await MediaRepository(widget.repository.api).list();
+      if (mounted) setState(() {
+        _messages = data;
+        _generatedMedia
+          ..clear()
+          ..addAll(media.where((item) => item['conversation_id'] == _id));
+        _loading = false;
+      });
+    } catch (_) { if (mounted) setState(() => _loading = false); }
   }
 
   Future<String?> _askForText(String title, String hint) async {
@@ -332,6 +341,12 @@ class _ChatScreenState extends State<ChatScreen> {
     ));
     controller.dispose();
     return value;
+  }
+  Future<void> _deleteMedia(String id) async {
+    try {
+      await MediaRepository(widget.repository.api).delete(id);
+      if (mounted) setState(() => _generatedMedia.removeWhere((item) => item['id'] == id));
+    } catch (_) { if (mounted) _showError(context, 'Could not delete generated media.'); }
   }
   Future<void> _generateImage() async {
     final prompt = await _askForText('Create an image', 'Describe the image…');
@@ -378,8 +393,9 @@ class _ChatScreenState extends State<ChatScreen> {
       Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
         controller: _scroll, padding: const EdgeInsets.all(16), children: [
           for (final media in _generatedMedia) Card(child: Padding(padding: const EdgeInsets.all(8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (media['kind'] == 'image') Image.network(media['url'] as String, errorBuilder: (_, __, ___) => const Text('Image link expired; generate a fresh image.')),
+            if (media['kind'] == 'image') Image.network(media['url'] as String, errorBuilder: (_, __, ___) => const Text('Image link expired; reopen this chat to refresh it.')),
             if (media['kind'] == 'voice') Row(children: [const Icon(Icons.graphic_eq), const SizedBox(width: 8), const Expanded(child: Text('Generated voice audio')), IconButton(onPressed: () => _audioPlayer.play(UrlSource(media['url'] as String)), icon: const Icon(Icons.play_circle_outline))]),
+            Align(alignment: Alignment.centerRight, child: IconButton(tooltip: 'Delete generated media', onPressed: () => _deleteMedia(media['id'] as String), icon: const Icon(Icons.delete_outline))),
           ]))),
           for (final message in _messages) Align(
             alignment: message['role'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
