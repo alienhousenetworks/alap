@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.protocol import ChatMessage
 from app.ai.registry import build_provider
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, rate_limit
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.character import Character
