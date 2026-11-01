@@ -17,6 +17,27 @@ services:
     ports: ["6379:6379"]
     command: ["redis-server", "--appendonly", "yes"]
     volumes: [alap_redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: ../services/api
+    env_file:
+      - ../services/api/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://alap:${POSTGRES_PASSWORD:-local-only-change-me}@postgres:5432/alap
+      REDIS_URL: redis://redis:6379/0
+    ports: ["8000:8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
+    restart: unless-stopped
 volumes:
   alap_postgres:
   alap_redis:
