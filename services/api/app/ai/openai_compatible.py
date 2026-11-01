@@ -2,6 +2,16 @@ import httpx
 from app.ai.protocol import ChatMessage, GenerationResult, ModerationResult
 
 
+def parse_moderation_result(data: dict) -> ModerationResult:
+    results = data.get("results") or []
+    if not results:
+        raise RuntimeError("Moderation provider returned no decision")
+    result = results[0]
+    categories = result.get("categories") or {}
+    flagged_categories = tuple(sorted(key for key, value in categories.items() if value is True))
+    return ModerationResult(flagged=bool(result.get("flagged")), categories=flagged_categories)
+
+
 class OpenAICompatibleProvider:
     """OpenAI API adapter. Chat and moderation both fail closed on provider errors."""
 
@@ -54,10 +64,4 @@ class OpenAICompatibleProvider:
             )
             response.raise_for_status()
             data = response.json()
-        results = data.get("results") or []
-        if not results:
-            raise RuntimeError("Moderation provider returned no decision")
-        result = results[0]
-        categories = result.get("categories") or {}
-        flagged_categories = tuple(sorted(key for key, value in categories.items() if value is True))
-        return ModerationResult(flagged=bool(result.get("flagged")), categories=flagged_categories)
+        return parse_moderation_result(data)
