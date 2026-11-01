@@ -16,10 +16,10 @@ Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED on
 | Billing | NOT_STARTED | Store sandbox receipts, payment provider integration, webhook signature/replay/idempotency tests |
 | Wallet ledger | NOT_STARTED | Immutable ledger, atomic debits/refunds, concurrency and reconciliation |
 | Image/voice | NOT_STARTED | Provider adapters, moderation, storage lifecycle, rights controls and cost limits |
-| Flutter app | IN_PROGRESS | Auth, secure token storage/refresh, character discovery/create, chat and account shell; native platform projects, device builds, accessibility and integration tests remain |
+| Flutter app | IN_PROGRESS | Auth, secure token storage/refresh, character discovery/create, chat, character reporting, account data export and password-confirmed account deletion; signed release builds, device QA, accessibility and integration tests remain |
 | Public website | IN_PROGRESS | Initial responsive landing page; full product, pricing, legal, SEO, analytics and accessibility review remain |
 | Admin UI | IN_PROGRESS | Initial console shell; protected login, MFA, role-aware screens and API integration remain |
-| Privacy & compliance | IN_PROGRESS | Authenticated JSON account export and password-confirmed account deletion with relational cascades; consent records, retention, deletion propagation to external providers/backups, policy/legal review and independent age assurance remain |
+| Privacy & compliance | IN_PROGRESS | Authenticated JSON account export in API and mobile profile, password-confirmed account deletion with relational cascades; consent records, retention, deletion propagation to external providers/backups, policy/legal review and independent age assurance remain |
 | Observability | NOT_STARTED | Structured redacted logs, traces, metrics, alerts, incident response and audit retention |
 | Deployment | NOT_STARTED | Production secrets, TLS, managed DB/Redis, object storage, backups/restore, rollback, staging and production smoke tests |
 | Security review | NOT_STARTED | Threat model, dependency/secret scanning, penetration test and independent authorization review |
