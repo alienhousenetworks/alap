@@ -24,8 +24,6 @@ class CharacterRepository {
     });
     return Map<String, dynamic>.from(response.data as Map);
   }
-}
-
 
   Future<void> report(String characterId, {required String reason, String details = ''}) async {
     await api.dio.post('/characters/$characterId/report', data: {
@@ -33,3 +31,4 @@ class CharacterRepository {
       'details': details,
     });
   }
+}
