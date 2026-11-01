@@ -17,7 +17,7 @@
 - Variable: `DEPLOY_PATH` (absolute path, e.g. `/opt/alap`).
 - Host: Docker Engine/Compose, a pre-provisioned `infra/.env.prod`, persistent volumes, backup tools and restricted SSH.
 
-The workflow syncs source while preserving host secrets/backups, validates Compose, builds and starts services, applies migrations and checks API readiness. It does not provision the host, create DNS/firewall rules, create secrets or replace rollback/on-call procedures.
+The workflow syncs source while preserving host secrets/backups, validates Compose, takes an encrypted off-host backup when an existing database is running, builds and starts services, applies migrations and checks API readiness. First deployment skips the pre-deploy backup because no database exists yet. It does not provision the host, create DNS/firewall rules, create secrets or replace rollback/on-call procedures.
 
 ## Encrypted backup and restore
 
