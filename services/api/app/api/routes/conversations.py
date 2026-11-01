@@ -23,7 +23,13 @@ async def list_conversations(limit: int = Query(default=30, ge=1, le=100), offse
     return list(rows.all())
 
 @router.post("", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
-async def create_conversation(body: ConversationCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def create_conversation(
+    body: ConversationCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _ip_limit: None = Depends(rate_limit(30, 60)),
+    _account_limit: None = Depends(account_rate_limit(30, 60)),
+):
     character = await db.get(Character, body.character_id)
     if character is None or not (character.owner_id == user.id or (character.is_published and character.visibility == "public" and character.moderation_status == "approved")):
         raise HTTPException(status_code=404, detail="Character not found")
