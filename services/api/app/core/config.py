@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = 30
     cors_origins: str = "http://localhost:3000"
     log_level: str = "INFO"
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    google_ai_api_key: str = ""
+    ai_default_provider: str = ""
+    ai_default_model: str = ""
 
     @property
     def allowed_origins(self) -> list[str]:
