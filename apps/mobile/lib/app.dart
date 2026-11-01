@@ -78,7 +78,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final pages = [
       DiscoverScreen(characters: widget.characters, conversations: widget.conversations),
-      CreateCharacterScreen(repository: widget.characters),
+      CreateCharacterScreen(repository: widget.characters, conversations: widget.conversations),
       ChatsScreen(repository: widget.conversations),
       ProfileScreen(auth: widget.auth, onLogout: widget.onLogout),
     ];
@@ -157,8 +157,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 }
 
 class CreateCharacterScreen extends StatefulWidget {
-  const CreateCharacterScreen({super.key, required this.repository});
+  const CreateCharacterScreen({super.key, required this.repository, required this.conversations});
   final CharacterRepository repository;
+  final ConversationRepository conversations;
   @override
   State<CreateCharacterScreen> createState() => _CreateCharacterScreenState();
 }
@@ -177,14 +178,20 @@ class _CreateCharacterScreenState extends State<CreateCharacterScreen> {
     if (_name.text.trim().length < 2) { _showError(context, 'Character name must be at least 2 characters.'); return; }
     setState(() => _busy = true);
     try {
-      await widget.repository.create(
+      final character = await widget.repository.create(
         name: _name.text.trim(), description: _description.text.trim(), greeting: _greeting.text.trim(),
         personality: _personality.text.trim().isEmpty ? {} : {'traits': _personality.text.trim()},
         visibility: 'private',
       );
       if (!mounted) return;
       _name.clear(); _description.clear(); _greeting.clear(); _personality.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Character created as private. Publishing will be available after moderation is enabled.')));
+      try {
+        final conversation = await widget.conversations.create(character['id'] as String);
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatScreen(repository: widget.conversations, conversation: conversation)));
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Character created, but chat could not be started.')));
+      }
     } catch (_) {
       if (mounted) _showError(context, 'Character could not be created.');
     } finally { if (mounted) setState(() => _busy = false); }
