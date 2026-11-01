@@ -15,7 +15,6 @@ class CharacterUpdate(BaseModel):
     personality: dict[str, str] | None = None
     greeting: str | None = Field(default=None, max_length=2000)
     visibility: Literal["private", "public"] | None = None
-    is_published: bool | None = None
 
 class CharacterResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
