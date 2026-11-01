@@ -74,13 +74,13 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     return TokenResponse(access_token=access, refresh_token=new_refresh, expires_in=settings.access_token_ttl_minutes * 60)
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     try:
         payload = decode_token(body.refresh_token, expected_type="refresh")
         jti = payload["jti"]
     except (ValueError, KeyError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid refresh token") from None
-    session = await db.scalar(select(AuthSession).where(AuthSession.refresh_jti == jti, AuthSession.user_id == user.id))
+    session = await db.scalar(select(AuthSession).where(AuthSession.refresh_jti == jti))
     if session is not None:
         session.revoked = True
         await db.commit()
