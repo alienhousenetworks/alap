@@ -13,6 +13,7 @@ Base path: `/api/v1`. All endpoints except system and health require a bearer ac
 - `POST /auth/refresh` — refresh_token; rotates the refresh session.
 - `POST /auth/logout` — refresh_token; revokes that refresh session.
 - `GET /auth/me` — current account.
+- `GET /auth/me/export` — export account profile, owned characters, conversations and messages as JSON.
 - `DELETE /auth/me` — password-confirmed account deletion.
 
 Access tokens are short-lived JWTs. Refresh-token identifiers are persisted and rotated. Passwords use Argon2. Email verification and password reset are not implemented yet; registration currently relies on user age confirmation and must not be treated as age assurance.
@@ -33,12 +34,13 @@ A user cannot publish a character directly. Public visibility requires administr
 - `GET /conversations/{id}/messages` — paginated message history.
 - `POST /conversations/{id}/messages` — generate and persist a user/assistant turn using the configured AI provider.
 
-The current chat route is synchronous and uses the most recent 20 messages. Streaming, durable long-term memory, content moderation for live turns and provider failover are not implemented yet.
+The current chat route is synchronous and uses the most recent 20 messages. User input and generated output are checked through the OpenAI Moderation API; if moderation is unavailable, the turn fails closed and is not persisted. Streaming, durable long-term memory, and provider failover are not implemented yet.
 
 ## Administration
 - `GET /admin/moderation/characters?status=pending` — admin moderation queue.
 - `POST /admin/characters/{id}/approve` — approve; publishes only if visibility is public.
 - `POST /admin/characters/{id}/reject` — reject with a reason.
+- `GET /admin/audit/moderation` — read-only moderation decision history, newest first.
 
 Bootstrap an administrator only from a trusted operator shell after creating the account:
 `cd services/api && python scripts/promote_admin.py admin@example.com`
