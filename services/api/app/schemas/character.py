@@ -26,3 +26,5 @@ class CharacterResponse(BaseModel):
     greeting: str
     visibility: str
     is_published: bool
+    moderation_status: str
+    moderation_note: str | None
