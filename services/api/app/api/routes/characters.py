@@ -48,6 +48,8 @@ async def update_character(character_id: UUID, body: CharacterUpdate, db: AsyncS
     if character is None or character.owner_id != user.id:
         raise HTTPException(status_code=404, detail="Character not found")
     changes = body.model_dump(exclude_unset=True)
+    if any(value is None for value in changes.values()):
+        raise HTTPException(status_code=422, detail="Character fields cannot be set to null")
     personality = changes.get("personality")
     if personality is not None and (len(personality) > 30 or any(len(k) > 40 or len(v) > 500 for k, v in personality.items())):
         raise HTTPException(status_code=422, detail="Personality fields exceed allowed limits")
