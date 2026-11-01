@@ -25,7 +25,7 @@ Install `age` and `rclone`; configure `AGE_RECIPIENT` and `BACKUP_REMOTE` on the
 
 ## Signed mobile builds
 
-`.github/workflows/mobile-release.yml` produces signed Android App Bundle and iOS IPA artifacts when signing assets are configured. Required GitHub variable: `API_BASE_URL` (HTTPS API origin). Android secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, `ANDROID_STORE_PASSWORD`. iOS secrets: `IOS_CERTIFICATE_BASE64` (distribution P12), `IOS_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64`, `IOS_TEAM_ID`; variable: `IOS_BUNDLE_ID`.
+`.github/workflows/quality.yml` includes manually dispatched signed Android App Bundle and iOS IPA jobs when signing assets are configured. Required GitHub variable: `API_BASE_URL` (HTTPS API origin). Android secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, `ANDROID_STORE_PASSWORD`. iOS secrets: `IOS_CERTIFICATE_BASE64` (distribution P12), `IOS_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64`, `IOS_TEAM_ID`; variable: `IOS_BUNDLE_ID`.
 
 The generated Android identifier is `com.alienhousenetworks.alap`; confirm it with your Play Console before creating signing assets. Confirm the iOS bundle identifier with App Store Connect. Store signing keys in protected GitHub environments, never in Git. This workflow builds artifacts but does not submit them to either store.
 
