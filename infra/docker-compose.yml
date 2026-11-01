@@ -12,6 +12,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
@@ -22,6 +24,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
+
   api:
     build:
       context: ../services/api
@@ -38,6 +42,36 @@ services:
         condition: service_healthy
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
     restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+    ports: ["3000:3000"]
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: ..
+      dockerfile: apps/admin/Dockerfile
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3001"
+      ALAP_API_URL: http://api:8000
+    ports: ["3001:3001"]
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   alap_postgres:
   alap_redis:
