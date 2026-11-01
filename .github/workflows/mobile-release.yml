@@ -11,6 +11,11 @@ name: Signed mobile release
 permissions:
   contents: read
 jobs:
+  push_guard:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Signed release builds run only on explicit manual dispatch."
   android:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
