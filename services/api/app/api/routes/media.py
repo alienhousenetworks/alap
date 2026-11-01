@@ -1,5 +1,4 @@
 import base64
-import secrets
 from uuid import UUID, uuid4
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
