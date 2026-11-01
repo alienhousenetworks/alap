@@ -1,0 +1,12 @@
+{
+  "name": "alap-platform",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/web", "apps/admin"],
+  "scripts": {
+    "web:dev": "npm --workspace @alap/web run dev",
+    "web:build": "npm --workspace @alap/web run build",
+    "admin:dev": "npm --workspace @alap/admin run dev",
+    "admin:build": "npm --workspace @alap/admin run build"
+  }
+}
