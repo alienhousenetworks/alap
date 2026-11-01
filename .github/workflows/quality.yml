@@ -1,7 +1,7 @@
 name: Quality
 on:
   push:
-    branches: [main, production/backend-identity]
+    branches: [main, production/backend-identity, production/ai-memory-media-ops]
   pull_request:
     branches: [main]
 permissions:
@@ -50,6 +50,7 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: alembic upgrade head
+      - run: alembic downgrade base && alembic upgrade head
       - run: ruff check --select E4,E7,E9,F app tests
       - run: pytest
   web:
@@ -76,5 +77,15 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
-      - run: flutter create --platforms=android,ios --org com.alap.app .
+      - run: flutter create --platforms=android,ios --org com.alienhousenetworks .
       - run: flutter build apk --debug --dart-define=API_BASE_URL=https://api.example.com
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t alap-api services/api
+      - name: Validate production Compose topology
+        run: |
+          cp infra/.env.prod.example infra/.env.prod
+          POSTGRES_PASSWORD=ci REDIS_PASSWORD=ci API_DOMAIN=api.example.com WEB_DOMAIN=example.com ADMIN_DOMAIN=admin.example.com docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml config -q
