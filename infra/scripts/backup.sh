@@ -2,8 +2,10 @@
 # Encrypted PostgreSQL backup; configure age and an off-host rclone remote first.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-: "${AGE_RECIPIENT:?Set AGE_RECIPIENT to the age public recipient}"
-: "${BACKUP_REMOTE:?Set BACKUP_REMOTE to an off-host rclone destination}"
+AGE_RECIPIENT="${AGE_RECIPIENT:-$(sed -n 's/^AGE_RECIPIENT=//p' "$ROOT/.env.prod")}"
+BACKUP_REMOTE="${BACKUP_REMOTE:-$(sed -n 's/^BACKUP_REMOTE=//p' "$ROOT/.env.prod")}"
+: "${AGE_RECIPIENT:?Set AGE_RECIPIENT to the age public recipient in infra/.env.prod}"
+: "${BACKUP_REMOTE:?Set BACKUP_REMOTE to an off-host rclone destination in infra/.env.prod}"
 command -v age >/dev/null
 command -v rclone >/dev/null
 OUT="${1:-$ROOT/backups}"
