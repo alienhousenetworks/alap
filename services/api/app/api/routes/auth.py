@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, rate_limit
 from app.core.config import settings
 from app.core.security import create_token, decode_token, hash_password, verify_password
 from app.db.session import get_db
