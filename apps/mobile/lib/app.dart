@@ -137,7 +137,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: reason,
+                initialValue: reason,
                 decoration: const InputDecoration(labelText: 'Reason'),
                 items: const [
                   DropdownMenuItem(value: 'sexual_content', child: Text('Sexual content')),
