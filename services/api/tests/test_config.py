@@ -13,6 +13,12 @@ def valid_production_settings(**overrides):
         "ai_default_model": "claude-model",
         "openai_api_key": "moderation-key",
         "anthropic_api_key": "anthropic-key",
+        "object_storage_bucket": "alap-media",
+        "object_storage_access_key": "access",
+        "object_storage_secret_key": "secret",
+        "media_monthly_budget_usd": 100,
+        "media_image_estimated_cost_usd": 0.05,
+        "media_voice_estimated_cost_per_1k_chars_usd": 0.02,
     }
     values.update(overrides)
     return Settings(**values)
