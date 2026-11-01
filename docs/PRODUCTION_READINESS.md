@@ -1,27 +1,34 @@
 # Production Readiness Register
 
-Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. Do not mark VERIFIED without test evidence.
+Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED only when repeatable evidence exists. CI checks are not substitutes for live provider, security or operational verification.
 
-| Area | Current status | Required evidence |
+| Area | Current status | Required evidence / remaining work |
 |---|---|---|
-| Repository foundation | IN_PROGRESS | Review all checked-in files |
-| Backend runtime | IN_PROGRESS | Install, start, tests, type/lint |
-| Database schema/migrations | NOT_STARTED | Alembic migrations + upgrade/downgrade tests |
-| Authentication | NOT_STARTED | Registration/login/refresh/revocation tests |
-| Authorization | NOT_STARTED | Cross-user access and role tests |
-| Character CRUD/publishing | NOT_STARTED | API + moderation integration tests |
-| AI provider adapters | NOT_STARTED | Live sandbox contract tests |
-| Conversation streaming | NOT_STARTED | Persistence, retries, disconnect tests |
-| Memory lifecycle | NOT_STARTED | Relevance, consent, delete propagation tests |
-| Billing | NOT_STARTED | Store sandbox receipts and webhook replay tests |
-| Wallet ledger | NOT_STARTED | Concurrency, idempotency and reconciliation tests |
-| Image/voice | NOT_STARTED | Provider contracts, moderation and cost controls |
-| Flutter app | IN_PROGRESS | Device builds, navigation, integration tests |
-| Public website | IN_PROGRESS | SEO, accessibility, responsive and build checks |
-| Admin | IN_PROGRESS | MFA, RBAC, audit and API integration |
-| Observability | NOT_STARTED | Dashboards, alerts, tracing, redaction |
-| Deployment | NOT_STARTED | TLS, secrets, backups, restore and rollback |
-| Security review | NOT_STARTED | Threat model, dependency scan, penetration test |
-| Store release | NOT_STARTED | Policy review and approved store submissions |
+| Repository foundation | IN_PROGRESS | Architecture and modular monolith boundaries exist; full code review remains |
+| Backend runtime | IN_PROGRESS | CI has run backend tests and migrations against PostgreSQL/Redis on earlier revisions; latest commits require a fresh green run |
+| Database schema/migrations | IN_PROGRESS | Alembic revisions 0001-0006 cover identity, characters, conversations, RBAC, moderation audit and reports; verify upgrade/downgrade/rollback on staging |
+| Authentication | IN_PROGRESS | Argon2, JWT access/refresh rotation, logout, current-user, password-confirmed deletion; email verification, password reset, MFA and device/session management remain |
+| Rate limiting | IN_PROGRESS | Redis IP limits for registration/login and IP+account limits for chat, character creation, conversation creation and reporting; distributed abuse tests and trusted-proxy review remain |
+| Authorization | IN_PROGRESS | Owner-scoped character/conversation APIs and admin role checks; exhaustive IDOR tests and independent authorization review remain |
+| Character safety | IN_PROGRESS | Manual publication review, re-review after edits, user reports, admin triage and moderation audit; appeals, automated creator screening and specialist safety review remain |
+| AI provider adapters | IN_PROGRESS | OpenAI, Anthropic and Google Gemini generation adapters; OpenAI moderation is mandatory for all providers and fails closed; failover, spend budgets and live provider contract tests remain |
+| Conversations | IN_PROGRESS | Persistent turns, Redis per-conversation lock, bounded context, input/profile/output moderation and stable cursor pagination; streaming, idempotency, long-term memory, load and race tests remain |
+| Billing | NOT_STARTED | Store sandbox receipts, payment integration, signed webhook handling and replay/idempotency tests |
+| Wallet ledger | NOT_STARTED | Immutable ledger, atomic debits/refunds, concurrency and reconciliation |
+| Image/voice | NOT_STARTED | Provider adapters, moderation, storage lifecycle, rights controls and cost limits |
+| Flutter app | IN_PROGRESS | Auth, secure token storage/refresh, discovery/create/chat, reporting, JSON data export and password-confirmed account deletion; native release signing, device QA and store compliance remain |
+| Public website | IN_PROGRESS | Responsive marketing landing page and metadata; complete product/help/legal pages, analytics, SEO and accessibility review remain |
+| Admin console | IN_PROGRESS | HttpOnly-cookie login proxy, API-enforced admin role, moderation queue, user reports and audit history; MFA, user/account operations, billing and provider operations remain |
+| Privacy & compliance | IN_PROGRESS | Authenticated JSON account export and password-confirmed deletion with relational cascades; email/consent records, retention, external-provider and backup deletion, legal review and independent age assurance remain |
+| Observability | NOT_STARTED | Structured redacted logs, traces, metrics, alerts, incident response and audit retention |
+| Deployment | NOT_STARTED | Production secrets, TLS, managed DB/Redis, object storage, backups/restore, rollback, staging and production smoke tests |
+| Security review | NOT_STARTED | Threat model, dependency/secret/container scanning, penetration test and independent authorization review |
+| Store release | NOT_STARTED | iOS/Android release signing, privacy labels, store policy review and approved submissions |
 
-The initial repository commits are a foundation only. No production-readiness claim is permitted until each critical row is evidenced.
+## Verification evidence
+
+- Earlier CI revisions passed backend tests and public-web builds; one earlier Flutter analysis passed and an Android debug build was later added to CI.
+- A backend CI revision passed migrations against PostgreSQL and Redis after adding the moderation audit model. Revisions 0005-0006 and later provider, reporting and configuration changes still need a fresh green run.
+- No production deployment, real AI provider request, billing/store purchase test, signed App Store/Play Store archive, penetration test or backup-restore test has been performed.
+
+This register is intentionally conservative. ALAP is not approved for production launch until all critical gates are verified.

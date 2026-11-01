@@ -1,9 +1,19 @@
 import httpx
-from app.ai.protocol import ChatMessage, GenerationResult
+from app.ai.protocol import ChatMessage, GenerationResult, ModerationResult
+
+
+def parse_moderation_result(data: dict) -> ModerationResult:
+    results = data.get("results") or []
+    if not results:
+        raise RuntimeError("Moderation provider returned no decision")
+    result = results[0]
+    categories = result.get("categories") or {}
+    flagged_categories = tuple(sorted(key for key, value in categories.items() if value is True))
+    return ModerationResult(flagged=bool(result.get("flagged")), categories=flagged_categories)
 
 
 class OpenAICompatibleProvider:
-    """OpenAI Chat Completions adapter. Requires a real API key; never fabricates responses."""
+    """OpenAI API adapter. Chat and moderation both fail closed on provider errors."""
 
     def __init__(self, api_key: str, base_url: str = "https://api.openai.com/v1", timeout: float = 45):
         if not api_key:
@@ -11,6 +21,9 @@ class OpenAICompatibleProvider:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+
+    def _headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self.api_key}"}
 
     async def generate(
         self, *, model: str, messages: list[ChatMessage], temperature: float = 0.8,
@@ -25,7 +38,7 @@ class OpenAICompatibleProvider:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(
                 f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self._headers(),
                 json=payload,
             )
             response.raise_for_status()
@@ -38,6 +51,17 @@ class OpenAICompatibleProvider:
             text=choices[0]["message"]["content"],
             input_tokens=usage.get("prompt_tokens"),
             output_tokens=usage.get("completion_tokens"),
-            provider="openai-compatible",
+            provider="openai",
             model=data.get("model", model),
         )
+
+    async def moderate(self, text: str) -> ModerationResult:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                f"{self.base_url}/moderations",
+                headers=self._headers(),
+                json={"model": "omni-moderation-latest", "input": text},
+            )
+            response.raise_for_status()
+            data = response.json()
+        return parse_moderation_result(data)

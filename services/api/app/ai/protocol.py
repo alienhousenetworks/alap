@@ -17,8 +17,16 @@ class GenerationResult:
     model: str
 
 
+@dataclass(frozen=True)
+class ModerationResult:
+    flagged: bool
+    categories: tuple[str, ...]
+
+
 class AIProvider(Protocol):
     async def generate(
         self, *, model: str, messages: list[ChatMessage], temperature: float = 0.8,
         max_tokens: int = 700,
     ) -> GenerationResult: ...
+
+    async def moderate(self, text: str) -> ModerationResult: ...
