@@ -43,4 +43,5 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
+      - run: flutter create --platforms=android,ios --org com.alap.app .
       - run: flutter build apk --debug --dart-define=API_BASE_URL=https://api.example.com
