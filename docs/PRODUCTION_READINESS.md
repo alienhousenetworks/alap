@@ -6,7 +6,7 @@ Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED on
 |---|---|---|
 | Repository foundation | IN_PROGRESS | Architecture and modular monolith boundaries exist; full code review remains |
 | Backend runtime | IN_PROGRESS | CI has run backend tests and migrations against PostgreSQL/Redis on earlier revisions; latest commits require a fresh green run |
-| Database schema/migrations | IN_PROGRESS | Alembic revisions 0001-0006 cover identity, characters, conversations, RBAC, moderation audit and reports; verify upgrade/downgrade/rollback on staging |
+| Database schema/migrations | IN_PROGRESS | Alembic revisions 0001-0007 cover identity, characters, conversations, RBAC, moderation audit, reports, opt-in memory, private media and spend quotas; verify full upgrade/downgrade/rollback on staging |
 | Authentication | IN_PROGRESS | Argon2, JWT access/refresh rotation, logout, current-user, password-confirmed deletion; email verification, password reset, MFA and device/session management remain |
 | Rate limiting | IN_PROGRESS | Redis IP limits for registration/login and IP+account limits for chat, character creation, conversation creation and reporting; distributed abuse tests and trusted-proxy review remain |
 | Authorization | IN_PROGRESS | Owner-scoped character/conversation APIs and admin role checks; exhaustive IDOR tests and independent authorization review remain |
