@@ -23,3 +23,12 @@ coverage/
 *.keystore
 *.p12
 *.mobileprovision
+
+android/key.properties
+android/app/key.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+infra/.env.prod
+backups/
