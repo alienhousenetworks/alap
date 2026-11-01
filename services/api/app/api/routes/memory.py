@@ -102,6 +102,8 @@ async def create_memory(
     body: MemoryCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
     _ip: None = Depends(rate_limit(30, 3600)), _account: None = Depends(account_rate_limit(30, 3600)),
 ):
+    if not user.memory_enabled:
+        raise HTTPException(status_code=403, detail="Enable memory before saving personal memories")
     content = body.content.strip()
     if len(content) < 2:
         raise HTTPException(status_code=422, detail="Memory content cannot be empty")
