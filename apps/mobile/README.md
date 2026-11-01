@@ -34,4 +34,4 @@ flutter test
 flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
 ```
 
-Quality CI compiles a debug Android APK. `.github/workflows/mobile-release.yml` can create signed Android App Bundle and iOS IPA artifacts after signing secrets/profiles are configured; it does not submit them to stores. Device QA, push notifications, universal links, accessibility audits, privacy disclosures and store compliance remain release gates.
+Quality CI compiles a debug Android APK. `.github/workflows/quality.yml` can create signed Android App Bundle and iOS IPA artifacts after signing secrets/profiles are configured; it does not submit them to stores. Device QA, push notifications, universal links, accessibility audits, privacy disclosures and store compliance remain release gates.
