@@ -21,7 +21,7 @@ The workflow syncs source while preserving host secrets/backups, validates Compo
 
 ## Encrypted backup and restore
 
-Install `age` and `rclone`; configure `AGE_RECIPIENT` and `BACKUP_REMOTE` on the host. Run `infra/scripts/backup.sh` to create an encrypted logical PostgreSQL backup and copy it off-host. For restore drills, set `AGE_IDENTITY` to the protected private age identity and run `infra/scripts/restore-check.sh path/to/backup.dump.age`. Keep the private identity outside the application host. Perform and record regular restore drills.
+Install `age` and `rclone`; configure `AGE_RECIPIENT` and `BACKUP_REMOTE` on the host. Run `bash infra/scripts/backup.sh` to create an encrypted logical PostgreSQL backup and copy it off-host. For restore drills, set `AGE_IDENTITY` to the protected private age identity and run `bash infra/scripts/restore-check.sh path/to/backup.dump.age`. Keep the private identity outside the application host. Perform and record regular restore drills.
 
 ## Signed mobile builds
 
