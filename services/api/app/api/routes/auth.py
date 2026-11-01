@@ -12,6 +12,8 @@ from app.models.auth_session import AuthSession
 from app.models.character import Character
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
+from app.models.memory import UserMemory
+from app.models.media_asset import MediaAsset
 from app.schemas.auth import DeleteAccountRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
 from app.schemas.character import CharacterResponse
 from app.schemas.conversation import ConversationResponse, MessageResponse
@@ -98,6 +100,15 @@ async def me(user: User = Depends(get_current_user)):
 async def delete_account(body: DeleteAccountRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=403, detail="Password confirmation failed")
+    media_assets = list((await db.scalars(select(MediaAsset).where(MediaAsset.user_id == user.id))).all())
+    if media_assets:
+        from app.services.object_storage import ObjectStorage
+        try:
+            storage = ObjectStorage()
+            for asset in media_assets:
+                await storage.delete(asset.object_key)
+        except Exception:
+            raise HTTPException(status_code=503, detail="Private media storage is unavailable; account deletion was not completed. Retry later.") from None
     await db.delete(user)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -123,11 +134,15 @@ async def export_account_data(
             .where(ConversationMessage.conversation_id.in_(conversation_ids))
             .order_by(ConversationMessage.created_at.asc(), ConversationMessage.id.asc())
         )).all())
+    memories = list((await db.scalars(select(UserMemory).where(UserMemory.user_id == user.id))).all())
+    media_assets = list((await db.scalars(select(MediaAsset).where(MediaAsset.user_id == user.id))).all())
     return {
-        "export_format_version": 1,
+        "export_format_version": 2,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "account": UserResponse.model_validate(user).model_dump(mode="json"),
         "characters": [CharacterResponse.model_validate(item).model_dump(mode="json") for item in characters],
         "conversations": [ConversationResponse.model_validate(item).model_dump(mode="json") for item in conversations],
         "messages": [MessageResponse.model_validate(item).model_dump(mode="json") for item in messages],
+        "memories": [{"content": x.content, "category": x.category, "enabled": x.enabled, "created_at": x.created_at.isoformat() if x.created_at else None} for x in memories],
+        "media_assets": [{"kind": x.kind, "mime_type": x.mime_type, "size_bytes": x.size_bytes, "created_at": x.created_at.isoformat() if x.created_at else None} for x in media_assets],
     }
