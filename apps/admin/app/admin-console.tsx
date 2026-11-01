@@ -13,7 +13,7 @@ export default function AdminConsole() {
   const [items, setItems] = useState<Character[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"queue" | "audit">("queue");
+  const [tab, setTab] = useState<"queue" | "audit" | "reports">("queue");
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
 
