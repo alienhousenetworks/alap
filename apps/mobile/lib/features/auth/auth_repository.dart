@@ -33,8 +33,6 @@ class AuthRepository {
   }
 
   Future<bool> hasSession() async => await storage.read(key: 'access_token') != null;
-}
-
 
   Future<void> deleteAccount(String password) async {
     await api.dio.delete('/auth/me', data: {'password': password});
@@ -46,3 +44,4 @@ class AuthRepository {
     final response = await api.dio.get('/auth/me/export');
     return Map<String, dynamic>.from(response.data as Map);
   }
+}
