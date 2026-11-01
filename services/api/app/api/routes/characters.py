@@ -55,6 +55,11 @@ async def update_character(character_id: UUID, body: CharacterUpdate, db: AsyncS
         raise HTTPException(status_code=422, detail="Personality fields exceed allowed limits")
     for key, value in changes.items():
         setattr(character, key, value)
+    if changes:
+        # Any owner edit invalidates the prior safety review before republishing.
+        character.moderation_status = "pending"
+        character.moderation_note = None
+        character.is_published = False
     await db.commit()
     await db.refresh(character)
     return character
