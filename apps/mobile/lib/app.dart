@@ -517,6 +517,17 @@ class _MemorySettingsScreenState extends State<MemorySettingsScreen> {
     try { await widget.repository.add(content, 'preference'); await _load(); }
     catch (_) { if (mounted) _showError(context, 'Could not save this memory.'); }
   }
+  Future<void> _edit(String id, String existing) async {
+    final controller = TextEditingController(text: existing);
+    final content = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Edit memory'), content: TextField(controller: controller, autofocus: true, maxLength: 500, maxLines: 3),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Save'))],
+    ));
+    controller.dispose();
+    if (content == null || content.length < 3) return;
+    try { await widget.repository.update(id, content); await _load(); }
+    catch (_) { if (mounted) _showError(context, 'Could not update this memory.'); }
+  }
   Future<void> _delete(String id) async {
     try { await widget.repository.delete(id); await _load(); }
     catch (_) { if (mounted) _showError(context, 'Could not delete this memory.'); }
@@ -530,7 +541,7 @@ class _MemorySettingsScreenState extends State<MemorySettingsScreen> {
       if (_enabled!) ...[
         const Text('Saved memories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         if (_items.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('No saved memories yet.')),
-        for (final item in _items) Card(child: ListTile(title: Text(item['content'] as String), subtitle: Text(item['category'] as String), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(item['id'] as String)))),
+        for (final item in _items) Card(child: ListTile(onTap: () => _edit(item['id'] as String, item['content'] as String), title: Text(item['content'] as String), subtitle: Text('${item['category']} · Tap to edit'), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(item['id'] as String)))),
         TextButton.icon(onPressed: _items.isEmpty ? null : () async { await widget.repository.clear(); await _load(); }, icon: const Icon(Icons.delete_sweep_outlined), label: const Text('Delete all memories')),
       ] else const Padding(padding: EdgeInsets.all(12), child: Text('Memory is off. Existing memories are retained but are not used in chats. Turn it on to use them again.')),
     ]),
