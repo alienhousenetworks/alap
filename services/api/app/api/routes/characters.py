@@ -1,6 +1,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import account_rate_limit, get_current_user, rate_limit
 from app.db.session import get_db
@@ -71,7 +72,11 @@ async def report_character(
         details=body.details.strip() or None,
     )
     db.add(report)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="You already have an open report for this character") from None
     await db.refresh(report)
     return report
 
