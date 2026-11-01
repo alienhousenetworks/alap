@@ -26,7 +26,7 @@ async def persist_session(db: AsyncSession, user: User, jti: str, expiry: dateti
     db.add(AuthSession(user_id=user.id, refresh_jti=jti, expires_at=expiry))
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db), _: None = Depends(rate_limit(5, 60))):
     if not body.confirm_adult:
         raise HTTPException(status_code=400, detail="You must confirm that you meet the age requirement")
     email = str(body.email).strip().lower()
@@ -43,7 +43,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     return TokenResponse(access_token=access, refresh_token=refresh, expires_in=settings.access_token_ttl_minutes * 60)
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db), _: None = Depends(rate_limit(10, 60))):
     email = str(body.email).strip().lower()
     user = await db.scalar(select(User).where(User.email == email, User.is_active.is_(True)))
     if user is None or not verify_password(body.password, user.password_hash):
