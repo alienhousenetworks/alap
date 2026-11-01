@@ -26,7 +26,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials | None = De
 def rate_limit(max_requests: int, window_seconds: int):
     async def dependency(request: Request):
         client = request.client.host if request.client else "unknown"
-        key = f"ratelimit:{request.url.path}:{client}"
+        route = request.scope.get("route")
+        route_key = getattr(route, "path", request.url.path)
+        key = f"ratelimit:{route_key}:{client}"
         try:
             pipe = request.app.state.redis.pipeline()
             pipe.incr(key)
