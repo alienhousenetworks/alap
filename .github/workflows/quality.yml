@@ -4,6 +4,12 @@ on:
     branches: [main, production/backend-identity, production/ai-memory-media-ops]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic release version (for example 1.2.0)
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -90,3 +96,114 @@ jobs:
         run: |
           cp infra/.env.prod.example infra/.env.prod
           POSTGRES_PASSWORD=ci REDIS_PASSWORD=ci API_DOMAIN=api.example.com WEB_DOMAIN=example.com ADMIN_DOMAIN=admin.example.com docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml config -q
+
+  release_android:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Validate Android signing and API settings
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) ;; *) echo 'Invalid version' >&2; exit 1;; esac
+          test -n "$KEYSTORE" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" && test -n "$STORE_PASSWORD"
+          case "$API_BASE_URL" in https://*) ;; *) echo 'API_BASE_URL must be HTTPS' >&2; exit 1;; esac
+      - name: Generate and sign Android release
+        working-directory: apps/mobile
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          flutter create --platforms=android --org com.alienhousenetworks .
+          echo "$KEYSTORE" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<PROPS
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          PROPS
+          python ../../infra/scripts/prepare_android_signing.py
+          flutter pub get
+          flutter build appbundle --release --build-name "$VERSION" --build-number "$GITHUB_RUN_NUMBER" --dart-define=API_BASE_URL="$API_BASE_URL"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alap-android-aab
+          path: apps/mobile/build/app/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+  release_ios:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Validate iOS signing and API settings
+        env:
+          CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          TEAM: ${{ secrets.IOS_TEAM_ID }}
+          BUNDLE: ${{ vars.IOS_BUNDLE_ID }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) ;; *) echo 'Invalid version' >&2; exit 1;; esac
+          test -n "$CERTIFICATE" && test -n "$CERTIFICATE_PASSWORD" && test -n "$PROFILE" && test -n "$TEAM" && test -n "$BUNDLE"
+          case "$API_BASE_URL" in https://*) ;; *) echo 'API_BASE_URL must be HTTPS' >&2; exit 1;; esac
+      - name: Install Apple distribution certificate and profile
+        env:
+          CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          BUNDLE: ${{ vars.IOS_BUNDLE_ID }}
+        run: |
+          security create-keychain -p "$RUNNER_TEMP/keychain-password" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "$RUNNER_TEMP/keychain-password" build.keychain
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$RUNNER_TEMP/keychain-password" build.keychain
+          security list-keychain -d user -s build.keychain
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' "$RUNNER_TEMP/profile.plist")
+          APP_ID=$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          case "$APP_ID" in *."$BUNDLE") ;; *) echo 'Provisioning profile does not match IOS_BUNDLE_ID' >&2; exit 1;; esac
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "IOS_PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+      - name: Generate and sign iOS release
+        working-directory: apps/mobile
+        env:
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          flutter create --platforms=ios --org com.alienhousenetworks .
+          python ../../infra/scripts/prepare_ios_signing.py
+          flutter pub get
+          flutter build ipa --release --build-name "$VERSION" --build-number "$GITHUB_RUN_NUMBER" --dart-define=API_BASE_URL="$API_BASE_URL" --export-options-plist=ios/ExportOptions.plist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alap-ios-ipa
+          path: apps/mobile/build/ios/ipa/*.ipa
+          if-no-files-found: error
