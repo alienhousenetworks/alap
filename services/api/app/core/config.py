@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     media_image_estimated_cost_usd: float = 0
     media_voice_estimated_cost_per_1k_chars_usd: float = 0
     object_storage_endpoint: str = ""
-    object_storage_region: str = "auto"
+    object_storage_region: str = "us-east-1"
     object_storage_bucket: str = ""
     object_storage_access_key: str = ""
     object_storage_secret_key: str = ""
