@@ -1,4 +1,5 @@
 import httpx
+from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -68,6 +69,7 @@ async def send_message(conversation_id: UUID, body: MessageCreate, db: AsyncSess
         raise HTTPException(status_code=502, detail="AI provider is unavailable; your message was not saved") from None
     user_message = ConversationMessage(conversation_id=conversation_id, role="user", content=body.content)
     assistant_message = ConversationMessage(conversation_id=conversation_id, role="assistant", content=result.text, provider=result.provider, model=result.model, input_tokens=result.input_tokens, output_tokens=result.output_tokens)
+    conversation.updated_at = datetime.now(timezone.utc)
     db.add_all([user_message, assistant_message])
     await db.commit()
     await db.refresh(user_message)
