@@ -47,7 +47,7 @@ async def list_messages(conversation_id: UUID, limit: int = Query(default=50, ge
     return list(reversed(rows))
 
 @router.post("/{conversation_id}/messages", response_model=ChatTurnResponse)
-async def send_message(conversation_id: UUID, body: MessageCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def send_message(conversation_id: UUID, body: MessageCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user), _: None = Depends(rate_limit(20, 60))):
     conversation = await db.scalar(select(Conversation).where(Conversation.id == conversation_id, Conversation.user_id == user.id).with_for_update())
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
