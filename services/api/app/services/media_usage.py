@@ -8,8 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.media_asset import MediaDailyUsage, MediaMonthlyBudget
 
-class MediaQuotaExceeded(Exception): pass
-class MediaBudgetExceeded(Exception): pass
+class MediaQuotaExceeded(Exception):
+    pass
+
+class MediaBudgetExceeded(Exception):
+    pass
 
 @dataclass(frozen=True)
 class MediaReservation:
