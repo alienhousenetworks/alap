@@ -357,7 +357,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Map<String, dynamic>.from(turn['user_message'] as Map),
         Map<String, dynamic>.from(turn['assistant_message'] as Map),
       ]));
-      if (_messages.length >= 6 && _messages.length % 6 == 0) {
+      if (mounted && _messages.length >= 6 && _messages.length % 6 == 0) {
         try {
           final memory = MemoryRepository(widget.repository.api);
           if (await memory.consent()) await memory.extract(_id);
@@ -493,7 +493,7 @@ class _MemorySettingsScreenState extends State<MemorySettingsScreen> {
   Future<void> _add() async {
     final controller = TextEditingController();
     final content = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Add a memory'), content: TextField(controller: controller, autofocus: true, maxLength: 500, maxLines: 3, decoration: const InputDecoration(hintText: 'Example: I prefer concise explanations.')),
+      title: const Text('Add a memory'), content: TextField(controller: controller, autofocus: true, maxLength: 500, maxLines: 3, decoration: const InputDecoration(hintText: 'Example: I prefer concise explanations. Do not save passwords or sensitive details.')),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Save'))],
     ));
     controller.dispose();
