@@ -358,13 +358,13 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _generateImage() async {
     final prompt = await _askForText('Create an image', 'Describe the image…');
     if (prompt == null || prompt.length < 4 || !mounted) return;
-    try { final item = await MediaRepository(widget.repository.api).image(prompt, _id); if (mounted) { setState(() => _generatedMedia.insert(0, item)); _refreshMediaUsage(); } }
+    try { final item = await MediaRepository(widget.repository.api).image(prompt, _id); if (mounted) { setState(() => _generatedMedia.insert(0, item)); unawaited(_refreshMediaUsage()); } }
     catch (_) { if (mounted) _showError(context, 'Image generation failed. Check media budget and try again.'); }
   }
   Future<void> _generateVoice() async {
     final text = await _askForText('Generate voice audio', 'Enter the words to speak…');
     if (text == null || text.isEmpty || !mounted) return;
-    try { final item = await MediaRepository(widget.repository.api).voice(text, _id); if (mounted) setState(() => _generatedMedia.insert(0, item)); }
+    try { final item = await MediaRepository(widget.repository.api).voice(text, _id); if (mounted) { setState(() => _generatedMedia.insert(0, item)); unawaited(_refreshMediaUsage()); } }
     catch (_) { if (mounted) _showError(context, 'Voice generation failed. Check media budget and try again.'); }
   }
 
@@ -399,7 +399,7 @@ class _ChatScreenState extends State<ChatScreen> {
     body: Column(children: [
       Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
         controller: _scroll, padding: const EdgeInsets.all(16), children: [
-          if (_mediaUsage != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('Today: ${_mediaUsage!['images_used']}/${_mediaUsage!['images_limit']} images · ${_mediaUsage!['voice_characters_used']}/${_mediaUsage!['voice_characters_limit']} voice characters. Monthly estimated spend: ${_mediaUsage!['monthly_estimated_spend_usd']} / ${_mediaUsage!['monthly_budget_usd']}.', style: const TextStyle(color: Colors.white60, fontSize: 12))),
+          if (_mediaUsage != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('Today: ${_mediaUsage!["images_used"]}/${_mediaUsage!["images_limit"]} images · ${_mediaUsage!["voice_characters_used"]}/${_mediaUsage!["voice_characters_limit"]} voice characters. Monthly estimated spend: ${_mediaUsage!["monthly_estimated_spend_usd"]} / ${_mediaUsage!["monthly_budget_usd"]}.', style: const TextStyle(color: Colors.white60, fontSize: 12))),
           for (final media in _generatedMedia) Card(child: Padding(padding: const EdgeInsets.all(8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (media['kind'] == 'image') Image.network(media['url'] as String, errorBuilder: (_, __, ___) => const Text('Image link expired; reopen this chat to refresh it.')),
             if (media['kind'] == 'voice') Row(children: [const Icon(Icons.graphic_eq), const SizedBox(width: 8), const Expanded(child: Text('Generated voice audio')), IconButton(onPressed: () => _audioPlayer.play(UrlSource(media['url'] as String)), icon: const Icon(Icons.play_circle_outline))]),
