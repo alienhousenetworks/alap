@@ -1,35 +1,34 @@
 # Production Readiness Register
 
-Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED only when repeatable evidence exists. CI checks are not substitutes for live integration, security or operational verification.
+Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED only when repeatable evidence exists. CI checks are not substitutes for live provider, security or operational verification.
 
 | Area | Current status | Required evidence / remaining work |
 |---|---|---|
-| Repository foundation | IN_PROGRESS | Architecture and baseline files exist; complete code review remains |
-| Backend runtime | IN_PROGRESS | CI installs API, Ruff correctness checks and pytest pass on a prior PR revision; rerun after latest commits |
-| Database schema/migrations | IN_PROGRESS | Alembic migrations 0001-0003 exist; run upgrade/downgrade against real PostgreSQL and test rollback |
-| Authentication | IN_PROGRESS | Registration, login, Argon2, JWT access/refresh rotation, logout, current-user and account deletion routes; email verification, password reset, MFA, session/device management and integration tests remain |
-| Rate limiting | IN_PROGRESS | Redis-backed IP throttles on registration/login/chat; distributed abuse testing, per-account limits and proxy trust configuration remain |
-| Authorization | IN_PROGRESS | Owner-scoped character/conversation access and admin role dependency; exhaustive IDOR tests and role administration review remain |
-| Character platform | IN_PROGRESS | Owner CRUD/discovery, pending-review state, re-review after owner edits, admin queue, approve/reject, append-only moderation audit feed, user safety reports and admin report triage; appeals and richer safety review remain |
-| AI provider adapters | IN_PROGRESS | OpenAI, Anthropic and Google Gemini generation adapters; OpenAI moderation is mandatory for every provider and fails closed; provider failover, budget enforcement and live contract tests remain |
-| Conversations | IN_PROGRESS | Persistent conversations/messages; input and output moderation fail closed through OpenAI Moderation API; streaming, retries, idempotency, concurrency/load tests and memory lifecycle remain |
-| Billing | NOT_STARTED | Store sandbox receipts, payment provider integration, webhook signature/replay/idempotency tests |
+| Repository foundation | IN_PROGRESS | Architecture and modular monolith boundaries exist; full code review remains |
+| Backend runtime | IN_PROGRESS | CI has run backend tests and migrations against PostgreSQL/Redis on earlier revisions; latest commits require a fresh green run |
+| Database schema/migrations | IN_PROGRESS | Alembic revisions 0001-0006 cover identity, characters, conversations, RBAC, moderation audit and reports; verify upgrade/downgrade/rollback on staging |
+| Authentication | IN_PROGRESS | Argon2, JWT access/refresh rotation, logout, current-user, password-confirmed deletion; email verification, password reset, MFA and device/session management remain |
+| Rate limiting | IN_PROGRESS | Redis IP limits for registration/login and IP+account limits for chat, character creation, conversation creation and reporting; distributed abuse tests and trusted-proxy review remain |
+| Authorization | IN_PROGRESS | Owner-scoped character/conversation APIs and admin role checks; exhaustive IDOR tests and independent authorization review remain |
+| Character safety | IN_PROGRESS | Manual publication review, re-review after edits, user reports, admin triage and moderation audit; appeals, automated creator screening and specialist safety review remain |
+| AI provider adapters | IN_PROGRESS | OpenAI, Anthropic and Google Gemini generation adapters; OpenAI moderation is mandatory for all providers and fails closed; failover, spend budgets and live provider contract tests remain |
+| Conversations | IN_PROGRESS | Persistent turns, Redis per-conversation lock, bounded context, input/profile/output moderation and stable cursor pagination; streaming, idempotency, long-term memory, load and race tests remain |
+| Billing | NOT_STARTED | Store sandbox receipts, payment integration, signed webhook handling and replay/idempotency tests |
 | Wallet ledger | NOT_STARTED | Immutable ledger, atomic debits/refunds, concurrency and reconciliation |
 | Image/voice | NOT_STARTED | Provider adapters, moderation, storage lifecycle, rights controls and cost limits |
-| Flutter app | IN_PROGRESS | Auth, secure token storage/refresh, character discovery/create, chat, character reporting, account data export and password-confirmed account deletion; signed release builds, device QA, accessibility and integration tests remain |
-| Public website | IN_PROGRESS | Initial responsive landing page; full product, pricing, legal, SEO, analytics and accessibility review remain |
-| Admin UI | IN_PROGRESS | Initial console shell; protected login, MFA, role-aware screens and API integration remain |
-| Privacy & compliance | IN_PROGRESS | Authenticated JSON account export in API and mobile profile, password-confirmed account deletion with relational cascades; consent records, retention, deletion propagation to external providers/backups, policy/legal review and independent age assurance remain |
+| Flutter app | IN_PROGRESS | Auth, secure token storage/refresh, discovery/create/chat, reporting, JSON data export and password-confirmed account deletion; native release signing, device QA and store compliance remain |
+| Public website | IN_PROGRESS | Responsive marketing landing page and metadata; complete product/help/legal pages, analytics, SEO and accessibility review remain |
+| Admin console | IN_PROGRESS | HttpOnly-cookie login proxy, API-enforced admin role, moderation queue, user reports and audit history; MFA, user/account operations, billing and provider operations remain |
+| Privacy & compliance | IN_PROGRESS | Authenticated JSON account export and password-confirmed deletion with relational cascades; email/consent records, retention, external-provider and backup deletion, legal review and independent age assurance remain |
 | Observability | NOT_STARTED | Structured redacted logs, traces, metrics, alerts, incident response and audit retention |
 | Deployment | NOT_STARTED | Production secrets, TLS, managed DB/Redis, object storage, backups/restore, rollback, staging and production smoke tests |
-| Security review | NOT_STARTED | Threat model, dependency/secret scanning, penetration test and independent authorization review |
+| Security review | NOT_STARTED | Threat model, dependency/secret/container scanning, penetration test and independent authorization review |
 | Store release | NOT_STARTED | iOS/Android release signing, privacy labels, store policy review and approved submissions |
 
-## Current verification evidence
+## Verification evidence
 
-- GitHub Actions has reported backend and public-web jobs successful for commit `997979604efcf56c4731778029c5afee2ae440a0`.
-- Flutter static analysis passed on that revision; the Android build failed because the repository did not yet contain native Android platform scaffolding. A subsequent workflow change generates native scaffolding in CI, and that change still requires a completed green run.
-- Later backend changes add Redis throttling, PostgreSQL migration execution in CI, RBAC, moderation, moderation audit records and account export. The latest backend CI job passed against PostgreSQL and Redis services; live provider, deployment and security testing remain.
-- No production deployment, real provider request, billing test, App Store/Play Store build, penetration test or data restore test has been performed.
+- Earlier CI revisions passed backend tests and public-web builds; one earlier Flutter analysis passed and an Android debug build was later added to CI.
+- A backend CI revision passed migrations against PostgreSQL and Redis after adding the moderation audit model. Revisions 0005-0006 and later provider, reporting and configuration changes still need a fresh green run.
+- No production deployment, real AI provider request, billing/store purchase test, signed App Store/Play Store archive, penetration test or backup-restore test has been performed.
 
-This register is intentionally conservative. The application is not approved for production launch until all critical gates are verified.
+This register is intentionally conservative. ALAP is not approved for production launch until all critical gates are verified.
