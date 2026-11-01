@@ -19,3 +19,23 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials | None = De
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid or inactive account")
     return user
+
+from fastapi import Request
+from redis.exceptions import RedisError
+
+def rate_limit(max_requests: int, window_seconds: int):
+    async def dependency(request: Request):
+        client = request.client.host if request.client else "unknown"
+        key = f"ratelimit:{request.url.path}:{client}"
+        try:
+            pipe = request.app.state.redis.pipeline()
+            pipe.incr(key)
+            pipe.ttl(key)
+            count, ttl = await pipe.execute()
+            if count == 1 or ttl < 0:
+                await request.app.state.redis.expire(key, window_seconds)
+        except RedisError:
+            raise HTTPException(status_code=503, detail="Rate limiting service is unavailable") from None
+        if count > max_requests:
+            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.", headers={"Retry-After": str(max(1, ttl))})
+    return dependency
