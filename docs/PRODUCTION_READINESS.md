@@ -1,27 +1,35 @@
 # Production Readiness Register
 
-Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. Do not mark VERIFIED without test evidence.
+Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED only when repeatable evidence exists. CI checks are not substitutes for live integration, security or operational verification.
 
-| Area | Current status | Required evidence |
+| Area | Current status | Required evidence / remaining work |
 |---|---|---|
-| Repository foundation | IN_PROGRESS | Review all checked-in files |
-| Backend runtime | IN_PROGRESS | Install, start, tests, type/lint |
-| Database schema/migrations | NOT_STARTED | Alembic migrations + upgrade/downgrade tests |
-| Authentication | NOT_STARTED | Registration/login/refresh/revocation tests |
-| Authorization | NOT_STARTED | Cross-user access and role tests |
-| Character CRUD/publishing | NOT_STARTED | API + moderation integration tests |
-| AI provider adapters | NOT_STARTED | Live sandbox contract tests |
-| Conversation streaming | NOT_STARTED | Persistence, retries, disconnect tests |
-| Memory lifecycle | NOT_STARTED | Relevance, consent, delete propagation tests |
-| Billing | NOT_STARTED | Store sandbox receipts and webhook replay tests |
-| Wallet ledger | NOT_STARTED | Concurrency, idempotency and reconciliation tests |
-| Image/voice | NOT_STARTED | Provider contracts, moderation and cost controls |
-| Flutter app | IN_PROGRESS | Device builds, navigation, integration tests |
-| Public website | IN_PROGRESS | SEO, accessibility, responsive and build checks |
-| Admin | IN_PROGRESS | MFA, RBAC, audit and API integration |
-| Observability | NOT_STARTED | Dashboards, alerts, tracing, redaction |
-| Deployment | NOT_STARTED | TLS, secrets, backups, restore and rollback |
-| Security review | NOT_STARTED | Threat model, dependency scan, penetration test |
-| Store release | NOT_STARTED | Policy review and approved store submissions |
+| Repository foundation | IN_PROGRESS | Architecture and baseline files exist; complete code review remains |
+| Backend runtime | IN_PROGRESS | CI installs API, Ruff correctness checks and pytest pass on a prior PR revision; rerun after latest commits |
+| Database schema/migrations | IN_PROGRESS | Alembic migrations 0001-0003 exist; run upgrade/downgrade against real PostgreSQL and test rollback |
+| Authentication | IN_PROGRESS | Registration, login, Argon2, JWT access/refresh rotation, logout, current-user and account deletion routes; email verification, password reset, MFA, session/device management and integration tests remain |
+| Rate limiting | IN_PROGRESS | Redis-backed IP throttles on registration/login/chat; distributed abuse testing, per-account limits and proxy trust configuration remain |
+| Authorization | IN_PROGRESS | Owner-scoped character/conversation access and admin role dependency; exhaustive IDOR tests and role administration review remain |
+| Character platform | IN_PROGRESS | Owner CRUD and discovery APIs; admin moderation queue and approve/reject; reporting, appeals, safety classifiers and audit trail remain |
+| AI provider adapters | IN_PROGRESS | OpenAI-compatible adapter wired to chat; Anthropic/Gemini, provider failover, budget enforcement and live contract tests remain |
+| Conversations | IN_PROGRESS | Persistent conversations/messages and synchronous AI turns; streaming, retries, idempotency, concurrency/load tests and memory lifecycle remain |
+| Billing | NOT_STARTED | Store sandbox receipts, payment provider integration, webhook signature/replay/idempotency tests |
+| Wallet ledger | NOT_STARTED | Immutable ledger, atomic debits/refunds, concurrency and reconciliation |
+| Image/voice | NOT_STARTED | Provider adapters, moderation, storage lifecycle, rights controls and cost limits |
+| Flutter app | IN_PROGRESS | Auth, secure token storage/refresh, character discovery/create, chat and account shell; native platform projects, device builds, accessibility and integration tests remain |
+| Public website | IN_PROGRESS | Initial responsive landing page; full product, pricing, legal, SEO, analytics and accessibility review remain |
+| Admin UI | IN_PROGRESS | Initial console shell; protected login, MFA, role-aware screens and API integration remain |
+| Privacy & compliance | NOT_STARTED | Data export, consent records, retention, deletion propagation, policy/legal review and age-assurance design |
+| Observability | NOT_STARTED | Structured redacted logs, traces, metrics, alerts, incident response and audit retention |
+| Deployment | NOT_STARTED | Production secrets, TLS, managed DB/Redis, object storage, backups/restore, rollback, staging and production smoke tests |
+| Security review | NOT_STARTED | Threat model, dependency/secret scanning, penetration test and independent authorization review |
+| Store release | NOT_STARTED | iOS/Android release signing, privacy labels, store policy review and approved submissions |
 
-The initial repository commits are a foundation only. No production-readiness claim is permitted until each critical row is evidenced.
+## Current verification evidence
+
+- GitHub Actions has reported backend and public-web jobs successful for commit `997979604efcf56c4731778029c5afee2ae440a0`.
+- Flutter static analysis passed on that revision; the Android build failed because the repository did not yet contain native Android platform scaffolding. A subsequent workflow change generates native scaffolding in CI, and that change still requires a completed green run.
+- Later backend changes add Redis throttling and RBAC/moderation; they require a fresh successful CI run and live database/Redis integration tests.
+- No production deployment, real provider request, billing test, App Store/Play Store build, penetration test or data restore test has been performed.
+
+This register is intentionally conservative. The application is not approved for production launch until all critical gates are verified.
