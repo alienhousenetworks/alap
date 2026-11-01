@@ -23,3 +23,6 @@ class UserResponse(BaseModel):
     email: EmailStr
     display_name: str
     is_adult_confirmed: bool
+
+class DeleteAccountRequest(BaseModel):
+    password: Annotated[str, Field(min_length=1, max_length=128)]
