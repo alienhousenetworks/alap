@@ -10,8 +10,8 @@ Status values: NOT_STARTED, IN_PROGRESS, VERIFIED, BLOCKED. A row is VERIFIED on
 | Authentication | IN_PROGRESS | Registration, login, Argon2, JWT access/refresh rotation, logout, current-user and account deletion routes; email verification, password reset, MFA, session/device management and integration tests remain |
 | Rate limiting | IN_PROGRESS | Redis-backed IP throttles on registration/login/chat; distributed abuse testing, per-account limits and proxy trust configuration remain |
 | Authorization | IN_PROGRESS | Owner-scoped character/conversation access and admin role dependency; exhaustive IDOR tests and role administration review remain |
-| Character platform | IN_PROGRESS | Owner CRUD/discovery, pending-review state, re-review after owner edits, admin queue, approve/reject and append-only moderation audit feed; user reporting, appeals and richer safety review remain |
-| AI provider adapters | IN_PROGRESS | OpenAI-compatible adapter wired to chat; Anthropic/Gemini, provider failover, budget enforcement and live contract tests remain |
+| Character platform | IN_PROGRESS | Owner CRUD/discovery, pending-review state, re-review after owner edits, admin queue, approve/reject, append-only moderation audit feed, user safety reports and admin report triage; appeals and richer safety review remain |
+| AI provider adapters | IN_PROGRESS | OpenAI, Anthropic and Google Gemini generation adapters; OpenAI moderation is mandatory for every provider and fails closed; provider failover, budget enforcement and live contract tests remain |
 | Conversations | IN_PROGRESS | Persistent conversations/messages; input and output moderation fail closed through OpenAI Moderation API; streaming, retries, idempotency, concurrency/load tests and memory lifecycle remain |
 | Billing | NOT_STARTED | Store sandbox receipts, payment provider integration, webhook signature/replay/idempotency tests |
 | Wallet ledger | NOT_STARTED | Immutable ledger, atomic debits/refunds, concurrency and reconciliation |
