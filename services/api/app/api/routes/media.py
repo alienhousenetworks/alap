@@ -1,5 +1,6 @@
 import base64
 from uuid import UUID, uuid4
+from datetime import datetime, timezone
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -10,7 +11,7 @@ from app.api.deps import account_rate_limit, get_current_user, rate_limit
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.conversation import Conversation
-from app.models.media_asset import MediaAsset
+from app.models.media_asset import MediaAsset, MediaDailyUsage, MediaMonthlyBudget
 from app.models.user import User
 from app.services.media_usage import MediaBudgetExceeded, MediaQuotaExceeded, MediaReservation, reserve_media_usage, release_media_usage
 from app.services.object_storage import ObjectStorage
@@ -112,6 +113,22 @@ async def generate_image(body: GenerateImage, db: AsyncSession = Depends(get_db)
 async def generate_voice(body: GenerateVoice, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
                          _ip: None = Depends(rate_limit(10, 60)), _account: None = Depends(account_rate_limit(10, 60))):
     return await _generate(user, db, "voice", body.text, body.conversation_id, voice=body.voice)
+
+@router.get("/usage")
+async def media_usage(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    daily = await db.scalar(select(MediaDailyUsage).where(
+        MediaDailyUsage.user_id == user.id, MediaDailyUsage.usage_date == now.date()
+    ))
+    monthly = await db.scalar(select(MediaMonthlyBudget).where(MediaMonthlyBudget.month == now.strftime("%Y-%m")))
+    return {
+        "images_used": daily.image_count if daily else 0,
+        "images_limit": settings.media_daily_image_limit,
+        "voice_characters_used": daily.voice_characters if daily else 0,
+        "voice_characters_limit": settings.media_daily_voice_characters,
+        "monthly_estimated_spend_usd": float(monthly.spent_usd) if monthly else 0,
+        "monthly_budget_usd": settings.media_monthly_budget_usd,
+    }
 
 @router.get("")
 async def list_media(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
