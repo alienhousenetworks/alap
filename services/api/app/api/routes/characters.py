@@ -55,6 +55,15 @@ async def report_character(
         or character.moderation_status != "approved"
     ):
         raise HTTPException(status_code=404, detail="Character not found")
+    existing = await db.scalar(
+        select(CharacterReport).where(
+            CharacterReport.reporter_user_id == user.id,
+            CharacterReport.character_id == character.id,
+            CharacterReport.status == "open",
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="You already have an open report for this character")
     report = CharacterReport(
         reporter_user_id=user.id,
         character_id=character.id,
