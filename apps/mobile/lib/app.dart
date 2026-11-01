@@ -366,11 +366,48 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.auth, required this.onLogout});
   final AuthRepository auth;
   final VoidCallback onLogout;
+  Future<void> _deleteAccount(BuildContext context) async {
+    final controller = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Confirm your password'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Permanently delete'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (password == null || password.isEmpty || !context.mounted) return;
+    try {
+      await auth.deleteAccount(password);
+      if (context.mounted) onLogout();
+    } catch (_) {
+      if (context.mounted) _showError(context, 'Account deletion failed. Check your password and try again.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
     const CircleAvatar(radius: 32, child: Icon(Icons.person_outline, size: 30)),
     const SizedBox(height: 18), const Text('Your ALAP account', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-    const SizedBox(height: 24), ListTile(leading: const Icon(Icons.logout), title: const Text('Sign out'), onTap: () async { await auth.logout(); onLogout(); }),
+    const SizedBox(height: 24),
+    ListTile(leading: const Icon(Icons.logout), title: const Text('Sign out'), onTap: () async { await auth.logout(); onLogout(); }),
+    ListTile(
+      leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+      title: const Text('Delete account and data', style: TextStyle(color: Colors.redAccent)),
+      subtitle: const Text('Permanently delete your account, characters and conversations.'),
+      onTap: () => _deleteAccount(context),
+    ),
   ]);
 }
 
