@@ -355,7 +355,7 @@ class _ChatScreenState extends State<ChatScreen> {
     catch (_) { if (mounted) _showError(context, 'Image generation failed. Check media budget and try again.'); }
   }
   Future<void> _generateVoice() async {
-    final text = await _askForText('Generate character voice', 'Enter the words to speak…');
+    final text = await _askForText('Generate voice audio', 'Enter the words to speak…');
     if (text == null || text.isEmpty || !mounted) return;
     try { final item = await MediaRepository(widget.repository.api).voice(text, _id); if (mounted) setState(() => _generatedMedia.insert(0, item)); }
     catch (_) { if (mounted) _showError(context, 'Voice generation failed. Check media budget and try again.'); }
