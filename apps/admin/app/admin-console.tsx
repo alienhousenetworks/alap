@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Character = { id: string; name: string; description: string; greeting: string; moderation_status: string; visibility: string; owner_id: string | null };
 type AuditItem = { id: string; actor_user_id: string | null; character_id: string | null; action: string; reason: string | null; created_at: string };
+type ReportItem = { id: string; reporter_user_id: string; character_id: string; reason: string; details: string | null; status: string; created_at: string };
 
 export default function AdminConsole() {
   const [email, setEmail] = useState("");
@@ -14,6 +15,7 @@ export default function AdminConsole() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"queue" | "audit">("queue");
   const [audit, setAudit] = useState<AuditItem[]>([]);
+  const [reports, setReports] = useState<ReportItem[]>([]);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/admin/moderation", { cache: "no-store" });
@@ -30,6 +32,25 @@ export default function AdminConsole() {
     const response = await fetch("/api/admin/audit", { cache: "no-store" });
     if (!response.ok) throw new Error("Could not load moderation audit history.");
     setAudit(await response.json());
+  }
+
+  async function loadReports() {
+    const response = await fetch("/api/admin/reports", { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load user safety reports.");
+    setReports(await response.json());
+  }
+
+  async function resolveReport(id: string, status: "resolved" | "dismissed") {
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/reports/" + encodeURIComponent(id) + "/resolve", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, note: status === "resolved" ? "Reviewed and actioned by moderation." : "Reviewed; no policy violation found." }),
+      });
+      if (!response.ok) throw new Error("Could not update this report.");
+      await loadReports();
+    } catch (e) { setError(e instanceof Error ? e.message : "Report review failed."); }
+    finally { setBusy(false); }
   }
 
   async function login(event: FormEvent) {
@@ -76,6 +97,7 @@ export default function AdminConsole() {
       <div style={{display:"flex",gap:10,marginBottom:24}}>
         <button onClick={()=>setTab("queue")}>Pending queue ({items.length})</button>
         <button onClick={()=>{setTab("audit");loadAudit().catch((e:Error)=>setError(e.message));}}>Audit history</button>
+        <button onClick={()=>{setTab("reports");loadReports().catch((e:Error)=>setError(e.message));}}>User reports</button>
       </div>
       {tab === "queue" ? <>
         <h2>Character moderation queue</h2>
@@ -84,12 +106,20 @@ export default function AdminConsole() {
           <p style={{color:"#c2c6ce"}}>{item.description}</p><blockquote style={{margin:0,padding:12,borderLeft:"2px solid #c5f36a",color:"#9299a5"}}>{item.greeting || "No opening greeting"}</blockquote>
           <div style={{display:"flex",gap:10,marginTop:18}}><button disabled={busy} onClick={()=>decide(item.id,"approve")}>Approve</button><button disabled={busy} onClick={()=>decide(item.id,"reject")}>Reject</button></div>
         </article>)}
-      </> : <>
+      </> : tab === "audit" ? <>
         <h2>Moderation audit history</h2>
         {audit.length === 0 ? <p style={{color:"#9299a5"}}>No moderation actions recorded.</p> : audit.map(entry=><article key={entry.id} style={{padding:18,marginBottom:10,border:"1px solid #ffffff20",borderRadius:12,background:"#151a22"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{entry.action.toUpperCase()}</strong><small style={{color:"#9299a5"}}>{new Date(entry.created_at).toLocaleString()}</small></div>
           <p style={{color:"#c2c6ce"}}>{entry.reason || "No reason supplied"}</p>
           <small style={{color:"#9299a5"}}>Character: {entry.character_id || "Deleted"} · Moderator: {entry.actor_user_id || "Deleted"}</small>
+        </article>)}
+      </> : <>
+        <h2>User safety reports</h2>
+        {reports.length === 0 ? <p style={{color:"#9299a5"}}>No open user reports.</p> : reports.map(report=><article key={report.id} style={{padding:18,marginBottom:10,border:"1px solid #ffffff20",borderRadius:12,background:"#151a22"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{report.reason.replaceAll("_"," ").toUpperCase()}</strong><small style={{color:"#9299a5"}}>{new Date(report.created_at).toLocaleString()}</small></div>
+          <p style={{color:"#c2c6ce"}}>{report.details || "No additional details supplied"}</p>
+          <small style={{color:"#9299a5"}}>Character: {report.character_id} · Reporter: {report.reporter_user_id}</small>
+          <div style={{display:"flex",gap:10,marginTop:14}}><button disabled={busy} onClick={()=>resolveReport(report.id,"resolved")}>Resolve</button><button disabled={busy} onClick={()=>resolveReport(report.id,"dismissed")}>Dismiss</button></div>
         </article>)}
       </>}
     </section>}
