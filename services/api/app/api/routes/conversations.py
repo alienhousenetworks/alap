@@ -64,9 +64,17 @@ async def send_message(conversation_id: UUID, body: MessageCreate, db: AsyncSess
     messages.append(ChatMessage(role="user", content=body.content))
     try:
         provider = build_provider(settings.ai_default_provider)
+        input_safety = await provider.moderate(body.content)
+        if input_safety.flagged:
+            raise HTTPException(status_code=422, detail="This message cannot be sent under ALAP's safety rules")
         result = await provider.generate(model=settings.ai_default_model, messages=messages, temperature=0.8, max_tokens=700)
+        output_safety = await provider.moderate(result.text)
+        if output_safety.flagged:
+            raise HTTPException(status_code=502, detail="The generated response did not pass safety checks; no message was saved")
+    except HTTPException:
+        raise
     except (ValueError, httpx.HTTPError, RuntimeError):
-        raise HTTPException(status_code=502, detail="AI provider is unavailable; your message was not saved") from None
+        raise HTTPException(status_code=502, detail="AI or safety provider is unavailable; your message was not saved") from None
     user_message = ConversationMessage(conversation_id=conversation_id, role="user", content=body.content)
     assistant_message = ConversationMessage(conversation_id=conversation_id, role="assistant", content=result.text, provider=result.provider, model=result.model, input_tokens=result.input_tokens, output_tokens=result.output_tokens)
     conversation.updated_at = datetime.now(timezone.utc)
