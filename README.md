@@ -7,13 +7,13 @@ ALAP is being developed as an AI character and interactive-story platform with F
 - `apps/web` — public Next.js marketing site
 - `apps/admin` — Next.js operations console
 - `services/api` — FastAPI modular monolith
-- `infra` — local Docker Compose development dependencies and API container
+- `infra` — local and production Docker Compose, Caddy, deployment and encrypted backup scripts
 - `docs` — architecture, API, security, development and production-readiness documentation
 
 ## Current implementation status
-The repository began empty and is still under active implementation. It now contains account authentication, character CRUD/discovery, persistent chat, AI provider adapters, safety moderation/reporting, admin moderation, account export/deletion and a Flutter client. It is **not yet a production release**.
+The repository began empty and is still under active implementation. It now contains account authentication, character CRUD/discovery, persistent chat, AI provider adapters, safety moderation/reporting, admin moderation, account export/deletion, opt-in long-term memory, private image/voice generation and a Flutter client. Production deployment and signed mobile release workflows are authored, but still require credentials and live verification. It is **not yet a production release**.
 
-Billing, wallet/credits, long-term memory, image/voice generation, email verification, password reset, age assurance, observability, production deployment and signed store releases remain incomplete or unverified. See `docs/PRODUCTION_READINESS.md` for the evidence-based gate list.
+Billing/wallet, email verification, password reset, independent age assurance, observability, live production deployment, provider spend reconciliation, store metadata, device QA and actual store submissions remain incomplete or unverified. See `docs/PRODUCTION_READINESS.md`, `docs/MEMORY_AND_MEDIA.md` and `docs/RELEASE_OPERATIONS.md` for evidence-based gates and operational setup.
 
 ## Local development
 See `docs/DEVELOPMENT.md`. Never commit secrets. Use generated secrets locally and a managed secrets store in deployed environments.
