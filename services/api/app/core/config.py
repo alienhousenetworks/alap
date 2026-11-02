@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     google_ai_api_key: str = ""
     ai_default_provider: str = ""
     ai_default_model: str = ""
+    memory_encryption_key: str = ""
+    memory_extraction_model: str = ""
 
     @property
     def allowed_origins(self) -> list[str]:
