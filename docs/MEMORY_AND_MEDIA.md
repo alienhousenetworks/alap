@@ -11,7 +11,7 @@ Memory is disabled by default and is explicitly opt-in per account. Saved memory
 
 Extraction runs periodically in the mobile chat flow only after consent is enabled. It reads only user-authored messages, asks the configured AI provider for up to five durable, non-sensitive facts, rejects malformed output, moderates each extracted fact, deduplicates exact matches and caps storage at 100 memories per account. The extraction prompt explicitly excludes sensitive personal data and credentials. This is model-assisted filtering, not a guarantee that sensitive facts can never be extracted; privacy disclosures must say so.
 
-Memory is inserted into the character prompt as untrusted context, never as privileged system instructions. Turning memory off prevents all saved memories from being injected into chat but retains them for later re-enabling. Users can inspect, edit, disable or delete memories, including deleting all. Account export includes memory records; account deletion cascades memory records.
+Memory is inserted into the character prompt as untrusted context, never as privileged system instructions. Retrieval is currently bounded recency-based retrieval (up to 30 enabled records / 6,000 characters), not vector or semantic relevance search; semantic retrieval, importance decay and key-rotation tooling remain future work. Turning memory off prevents all saved memories from being injected into chat but retains them for later re-enabling. Users can inspect, edit, disable or delete memories, including deleting all. Account export includes memory records; account deletion cascades memory records.
 
 ## Image and voice generation
 
