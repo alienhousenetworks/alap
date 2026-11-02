@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 import re
 from cryptography.fernet import Fernet, InvalidToken
@@ -24,7 +25,18 @@ def _cipher() -> Fernet:
 
 def _fingerprint(value: str) -> str:
     normalized = re.sub(r"\s+", " ", value.casefold()).strip()
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    key = settings.memory_encryption_key.encode("utf-8")
+    return hmac.new(key, normalized.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _looks_sensitive(value: str) -> bool:
+    patterns = (
+        r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b",
+        r"\+?\d[\d\s().-]{7,}\d",
+        r"\b(?:\d[ -]*?){13,19}\b",
+        r"https?://",
+    )
+    return any(re.search(pattern, value, re.IGNORECASE) for pattern in patterns)
 
 
 def encrypt_memory(value: str) -> str:
@@ -115,7 +127,7 @@ async def extract_and_store_memories(
         content = re.sub(r"\s+", " ", content).strip()
         if not 4 <= len(content) <= 240 or not isinstance(importance, int):
             continue
-        if importance < 1 or importance > 5:
+        if importance < 1 or importance > 5 or _looks_sensitive(content):
             continue
         # A second moderation check is performed on the exact candidate that will be persisted.
         safety = await provider.moderate(content)
