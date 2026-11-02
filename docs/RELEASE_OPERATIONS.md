@@ -4,7 +4,7 @@
 
 1. A hardened Linux host or managed container platform, DNS for API/web/admin, TLS and a monitored domain owner.
 2. Managed PostgreSQL 16 and Redis 7 are preferred. If bundled Compose services are used, configure persistent encrypted volumes, disk alerts and off-host backups.
-3. Create `infra/.env.prod` from `infra/.env.prod.example`; use unique random secrets. Never commit this file or provider credentials.
+3. Create `infra/.env.prod` from `infra/.env.prod.example`; use unique random secrets. Generate MEMORY_ENCRYPTION_KEY with Fernet, store it in a secrets manager and back it up separately. Never commit this file or provider credentials.
 4. Configure the selected AI generation provider, OpenAI moderation and image/voice generation, private S3-compatible object storage, and explicit media cost estimates/monthly cap.
 5. Configure provider-side spend limits, bucket lifecycle/backup, SMTP and DNS. Restrict admin access through VPN/IP allowlist before launch.
 6. Run migrations and staging smoke tests, restore a recent encrypted backup, verify TLS and rollback, then complete independent security/privacy review.
