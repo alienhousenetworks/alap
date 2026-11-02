@@ -14,16 +14,19 @@ from app.services.memory import encrypt_memory, list_memories, _fingerprint
 router = APIRouter(prefix="/characters/{character_id}/memory")
 
 
-async def _owned_character(db: AsyncSession, user: User, character_id: UUID):
-    character = await db.scalar(select(Character).where(Character.id == character_id, Character.owner_id == user.id))
-    if character is None:
+async def _accessible_character(db: AsyncSession, user: User, character_id: UUID):
+    character = await db.scalar(select(Character).where(Character.id == character_id))
+    if character is None or not (
+        character.owner_id == user.id
+        or (character.is_published and character.visibility == "public" and character.moderation_status == "approved")
+    ):
         raise HTTPException(status_code=404, detail="Character not found")
     return character
 
 
 @router.get("", response_model=list[MemoryResponse])
 async def get_memory(character_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    await _owned_character(db, user, character_id)
+    await _accessible_character(db, user, character_id)
     return await list_memories(db, user_id=user.id, character_id=character_id)
 
 
