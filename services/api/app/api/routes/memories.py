@@ -60,5 +60,5 @@ async def delete_memory(character_id: UUID, memory_id: UUID, db: AsyncSession = 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_memory(character_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     await _owned_character(db, user, character_id)
-    await db.execute(delete(CharacterMemory).where(CharacterMemory.user_id == user.id, CharacterMemory.character_id == character_id))
+    await db.execute(delete(CharacterMemory).where(CharacterMemory.user_id == user.id))
     await db.commit()
