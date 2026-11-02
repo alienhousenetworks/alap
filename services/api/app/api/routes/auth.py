@@ -13,6 +13,8 @@ from app.models.character import Character
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
 from app.models.media_asset import MediaAsset
+from app.models.memory import CharacterMemory
+from app.services.memory import decrypt_memory
 from app.services.media_storage import delete_user_objects
 from app.schemas.auth import DeleteAccountRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
 from app.schemas.character import CharacterResponse
@@ -131,11 +133,42 @@ async def export_account_data(
             .where(ConversationMessage.conversation_id.in_(conversation_ids))
             .order_by(ConversationMessage.created_at.asc(), ConversationMessage.id.asc())
         )).all())
+    memories = list((await db.scalars(
+        select(CharacterMemory).where(CharacterMemory.user_id == user.id).order_by(CharacterMemory.created_at.asc())
+    )).all())
+    media_assets = list((await db.scalars(
+        select(MediaAsset).where(MediaAsset.user_id == user.id).order_by(MediaAsset.created_at.asc())
+    )).all())
+    try:
+        exported_memories = [
+            {
+                "id": str(item.id),
+                "character_id": str(item.character_id),
+                "category": item.category,
+                "content": decrypt_memory(item.encrypted_content),
+                "importance": item.importance,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item in memories
+        ]
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Encrypted memory export is temporarily unavailable") from None
     return {
-        "export_format_version": 1,
+        "export_format_version": 2,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "account": UserResponse.model_validate(user).model_dump(mode="json"),
         "characters": [CharacterResponse.model_validate(item).model_dump(mode="json") for item in characters],
         "conversations": [ConversationResponse.model_validate(item).model_dump(mode="json") for item in conversations],
         "messages": [MessageResponse.model_validate(item).model_dump(mode="json") for item in messages],
+        "memories": exported_memories,
+        "media_assets": [
+            {
+                "id": str(item.id),
+                "media_type": item.media_type,
+                "mime_type": item.mime_type,
+                "byte_size": item.byte_size,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item in media_assets
+        ],
     }
