@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.memory import UserMemory
 from app.models.user import User
-from app.services.memory import encrypt_memory, decrypt_memory
+from app.services.memory import encrypt_memory, decrypt_memory, looks_sensitive
 
 router = APIRouter(prefix="/memory")
 
@@ -86,6 +86,8 @@ async def extract_memories(
             continue
         content, category = item["content"], item["category"]
         if not isinstance(content, str) or not 3 <= len(content.strip()) <= 500 or category not in {"preference", "goal", "context", "other"}:
+            continue
+        if looks_sensitive(content):
             continue
         safety = await provider.moderate(content)
         if safety.flagged:
