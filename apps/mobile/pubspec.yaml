@@ -14,6 +14,7 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.3
   google_fonts: ^6.2.1
+  just_audio: ^0.9.42
 dev_dependencies:
   flutter_test:
     sdk: flutter
