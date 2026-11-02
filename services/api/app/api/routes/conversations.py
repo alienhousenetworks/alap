@@ -186,7 +186,7 @@ async def send_message(
         await db.refresh(user_message)
         await db.refresh(assistant_message)
         await db.refresh(conversation)
-        if user.memory_enabled and settings.memory_encryption_key:
+        if user.memory_enabled and settings.memory_encryption_key and (sum(item.role == "user" for item in previous) + 1) % 5 == 0:
             try:
                 await extract_and_store_memories(
                     db, provider, user_id=user.id, character_id=character.id,
