@@ -32,7 +32,7 @@ async def get_memory(character_id: UUID, db: AsyncSession = Depends(get_db), use
 
 @router.post("", response_model=MemoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_memory(character_id: UUID, body: MemoryCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    await _owned_character(db, user, character_id)
+    await _accessible_character(db, user, character_id)
     if not user.memory_enabled:
         raise HTTPException(status_code=409, detail="Enable long-term memory before adding memories")
     if not settings.memory_encryption_key:
@@ -50,7 +50,7 @@ async def create_memory(character_id: UUID, body: MemoryCreate, db: AsyncSession
 
 @router.delete("/{memory_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_memory(character_id: UUID, memory_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    await _owned_character(db, user, character_id)
+    await _accessible_character(db, user, character_id)
     row = await db.scalar(select(CharacterMemory).where(
         CharacterMemory.id == memory_id, CharacterMemory.user_id == user.id, CharacterMemory.character_id == character_id
     ))
@@ -62,6 +62,6 @@ async def delete_memory(character_id: UUID, memory_id: UUID, db: AsyncSession = 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_memory(character_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    await _owned_character(db, user, character_id)
+    await _accessible_character(db, user, character_id)
     await db.execute(delete(CharacterMemory).where(CharacterMemory.user_id == user.id))
     await db.commit()
