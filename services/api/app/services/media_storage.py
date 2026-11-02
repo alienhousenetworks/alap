@@ -42,3 +42,9 @@ async def signed_object_url(key: str, expires_seconds: int = 900) -> str:
 async def delete_object(key: str) -> None:
     client = _client()
     await asyncio.to_thread(client.delete_object, Bucket=settings.media_s3_bucket, Key=key)
+
+
+async def delete_user_objects(keys: list[str]) -> None:
+    client = _client()
+    for key in keys:
+        await asyncio.to_thread(client.delete_object, Bucket=settings.media_s3_bucket, Key=key)
