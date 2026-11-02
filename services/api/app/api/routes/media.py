@@ -1,5 +1,5 @@
-import hashlib
 import secrets
+from datetime import datetime, timezone
 from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/media")
 
 
 async def _consume_daily_quota(request: Request, user_id: UUID, media_type: str, limit: int):
-    key = f"media-quota:{media_type}:{user_id}:{__import__('datetime').datetime.now(__import__('datetime').timezone.utc).date().isoformat()}"
+    key = f"media-quota:{media_type}:{user_id}:{datetime.now(timezone.utc).date().isoformat()}"
     try:
         count = await request.app.state.redis.incr(key)
         if count == 1:
