@@ -7,6 +7,7 @@ import 'features/auth/auth_repository.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/characters/character_repository.dart';
 import 'features/chat/conversation_repository.dart';
+import 'features/chat/chat_tools_screen.dart';
 
 class AlapApp extends StatefulWidget {
   const AlapApp({super.key});
@@ -339,7 +340,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.conversation['title'] as String? ?? 'Conversation')),
+    appBar: AppBar(
+      title: Text(widget.conversation['title'] as String? ?? 'Conversation'),
+      actions: [
+        IconButton(
+          tooltip: 'Memory, images and voice',
+          icon: const Icon(Icons.tune),
+          onPressed: () {
+            final assistantMessages = _messages.where((item) => item['role'] == 'assistant').toList();
+            final lastAssistantText = assistantMessages.isEmpty ? '' : assistantMessages.last['content'] as String;
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatToolsScreen(
+              api: widget.repository.api,
+              characterId: widget.conversation['character_id'] as String,
+              lastAssistantText: lastAssistantText,
+            )));
+          },
+        ),
+      ],
+    ),
     body: Column(children: [
       Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
         controller: _scroll, padding: const EdgeInsets.all(16), children: [
