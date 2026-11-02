@@ -1,4 +1,5 @@
 from uuid import UUID
+import re
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,16 @@ def decrypt_memory(ciphertext: str) -> str:
         return _cipher().decrypt(ciphertext.encode("ascii")).decode("utf-8")
     except (InvalidToken, UnicodeDecodeError, ValueError):
         raise RuntimeError("Saved memory could not be decrypted") from None
+
+
+def looks_sensitive(content: str) -> bool:
+    patterns = (
+        r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b",
+        r"\+?\d[\d\s().-]{7,}\d",
+        r"\b(?:\d[ -]*?){13,19}\b",
+        r"https?://",
+    )
+    return any(re.search(pattern, content, re.IGNORECASE) for pattern in patterns)
 
 
 async def load_memory_context(db: AsyncSession, user_id: UUID, enabled: bool, limit: int = 30) -> str:
