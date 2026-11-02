@@ -81,7 +81,7 @@ async def create_speech(
         await store_object(key=key, body=audio_bytes, content_type="audio/mpeg")
     except HTTPException:
         raise
-    except (httpx.HTTPError, RuntimeError, ValueError):
+    except (httpx.HTTPError, RuntimeError, ValueError, BotoCoreError):
         raise HTTPException(status_code=502, detail="Speech generation or secure storage is unavailable") from None
     asset = MediaAsset(
         user_id=user.id, media_type="audio", object_key=key, mime_type="audio/mpeg",
@@ -118,7 +118,7 @@ async def remove_media(asset_id: UUID, db: AsyncSession = Depends(get_db), user:
         raise HTTPException(status_code=404, detail="Media asset not found")
     try:
         await delete_object(asset.object_key)
-    except RuntimeError:
+    except (RuntimeError, BotoCoreError):
         raise HTTPException(status_code=503, detail="Private media storage is unavailable") from None
     await db.delete(asset)
     await db.commit()
