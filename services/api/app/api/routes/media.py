@@ -2,6 +2,7 @@ import secrets
 from datetime import datetime, timezone
 from uuid import UUID
 import httpx
+from botocore.exceptions import BotoCoreError
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +51,7 @@ async def create_image(
         await store_object(key=key, body=image_bytes, content_type="image/png")
     except HTTPException:
         raise
-    except (httpx.HTTPError, RuntimeError, ValueError):
+    except (httpx.HTTPError, RuntimeError, ValueError, BotoCoreError):
         raise HTTPException(status_code=502, detail="Image generation or secure storage is unavailable") from None
     asset = MediaAsset(
         user_id=user.id, media_type="image", object_key=key, mime_type="image/png",
@@ -105,7 +106,7 @@ async def get_media_url(asset_id: UUID, db: AsyncSession = Depends(get_db), user
         raise HTTPException(status_code=404, detail="Media asset not found")
     try:
         url = await signed_object_url(asset.object_key)
-    except RuntimeError:
+    except (RuntimeError, BotoCoreError):
         raise HTTPException(status_code=503, detail="Private media storage is unavailable") from None
     return {"url": url, "expires_in": 900}
 
