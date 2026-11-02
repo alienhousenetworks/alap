@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from cryptography.fernet import Fernet
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -19,6 +20,7 @@ class Settings(BaseSettings):
     google_ai_api_key: str = ""
     ai_default_provider: str = ""
     ai_default_model: str = ""
+    memory_encryption_key: str = ""
     image_generation_model: str = "gpt-image-1"
     voice_generation_model: str = "gpt-4o-mini-tts"
     media_max_bytes: int = 20000000
@@ -63,6 +65,12 @@ class Settings(BaseSettings):
                 raise ValueError("AI_DEFAULT_PROVIDER must be openai, anthropic or google")
             if not provider_keys[self.ai_default_provider.lower()]:
                 raise ValueError("The selected AI provider API key is not configured")
+            if not self.memory_encryption_key:
+                raise ValueError("Production requires MEMORY_ENCRYPTION_KEY for encrypted long-term memory")
+            try:
+                Fernet(self.memory_encryption_key.encode("ascii"))
+            except (ValueError, TypeError, UnicodeEncodeError):
+                raise ValueError("MEMORY_ENCRYPTION_KEY must be a valid Fernet key") from None
             storage_values = (self.object_storage_bucket, self.object_storage_access_key, self.object_storage_secret_key)
             if not all(storage_values):
                 raise ValueError("Production requires private S3-compatible object storage")
