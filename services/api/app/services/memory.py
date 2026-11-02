@@ -1,7 +1,30 @@
 from uuid import UUID
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.models.memory import UserMemory
+
+
+def _cipher() -> Fernet:
+    if not settings.memory_encryption_key:
+        raise RuntimeError("MEMORY_ENCRYPTION_KEY is not configured")
+    try:
+        return Fernet(settings.memory_encryption_key.encode("ascii"))
+    except (ValueError, TypeError, UnicodeEncodeError):
+        raise RuntimeError("MEMORY_ENCRYPTION_KEY is invalid") from None
+
+
+def encrypt_memory(content: str) -> str:
+    return _cipher().encrypt(content.encode("utf-8")).decode("ascii")
+
+
+def decrypt_memory(ciphertext: str) -> str:
+    try:
+        return _cipher().decrypt(ciphertext.encode("ascii")).decode("utf-8")
+    except (InvalidToken, UnicodeDecodeError, ValueError):
+        raise RuntimeError("Saved memory could not be decrypted") from None
+
 
 async def load_memory_context(db: AsyncSession, user_id: UUID, enabled: bool, limit: int = 30) -> str:
     if not enabled:
@@ -15,7 +38,7 @@ async def load_memory_context(db: AsyncSession, user_id: UUID, enabled: bool, li
     lines = []
     used = 0
     for memory in memories:
-        content = memory.content[:500]
+        content = decrypt_memory(memory.content)[:500]
         if used + len(content) > 6000:
             break
         lines.append(f"- ({memory.category}) {content}")
