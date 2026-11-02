@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.memory import UserMemory
 from app.models.user import User
+from app.services.memory import encrypt_memory, decrypt_memory
 
 router = APIRouter(prefix="/memory")
 
@@ -33,6 +34,8 @@ async def get_consent(user: User = Depends(get_current_user)):
 
 @router.put("/consent")
 async def set_consent(body: MemoryConsent, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if body.enabled and not settings.memory_encryption_key:
+        raise HTTPException(status_code=503, detail="Memory encryption is not configured")
     user.memory_enabled = body.enabled
     await db.commit()
     return {"enabled": user.memory_enabled}
@@ -71,7 +74,9 @@ async def extract_memories(
             raise ValueError
     except (ValueError, TypeError):
         raise HTTPException(status_code=502, detail="Memory extraction returned invalid structured data") from None
-    current = len(list((await db.scalars(select(UserMemory.id).where(UserMemory.user_id == user.id))).all()))
+    current_rows = list((await db.scalars(select(UserMemory).where(UserMemory.user_id == user.id))).all())
+    current = len(current_rows)
+    existing_content = {decrypt_memory(row.content) for row in current_rows}
     created = []
     for item in extracted[:max(0, min(5, 100 - current))]:
         if not isinstance(item, dict) or set(item) != {"content", "category"}:
@@ -82,20 +87,20 @@ async def extract_memories(
         safety = await provider.moderate(content)
         if safety.flagged:
             continue
-        duplicate = await db.scalar(select(UserMemory.id).where(UserMemory.user_id == user.id, UserMemory.content == content.strip()))
-        if not duplicate:
-            row = UserMemory(user_id=user.id, content=content.strip(), category=category, source="conversation")
+        if content.strip() not in existing_content:
+            row = UserMemory(user_id=user.id, content=encrypt_memory(content.strip()), category=category, source="conversation")
             db.add(row)
             created.append(row)
+            existing_content.add(content.strip())
     await db.commit()
     for row in created:
         await db.refresh(row)
-    return {"created": len(created), "memories": [{"id": str(x.id), "content": x.content, "category": x.category} for x in created]}
+    return {"created": len(created), "memories": [{"id": str(x.id), "content": decrypt_memory(x.content), "category": x.category} for x in created]}
 
 @router.get("")
 async def list_memories(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     rows = await db.scalars(select(UserMemory).where(UserMemory.user_id == user.id).order_by(UserMemory.updated_at.desc()))
-    return [{"id": str(x.id), "content": x.content, "category": x.category, "enabled": x.enabled, "created_at": x.created_at} for x in rows.all()]
+    return [{"id": str(x.id), "content": decrypt_memory(x.content), "category": x.category, "enabled": x.enabled, "created_at": x.created_at} for x in rows.all()]
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_memory(
@@ -110,11 +115,11 @@ async def create_memory(
     count = len(list((await db.scalars(select(UserMemory.id).where(UserMemory.user_id == user.id))).all()))
     if count >= 100:
         raise HTTPException(status_code=409, detail="Memory limit reached; delete unused memories first")
-    row = UserMemory(user_id=user.id, content=content, category=body.category)
+    row = UserMemory(user_id=user.id, content=encrypt_memory(content), category=body.category)
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    return {"id": str(row.id), "content": row.content, "category": row.category, "enabled": row.enabled}
+    return {"id": str(row.id), "content": decrypt_memory(row.content), "category": row.category, "enabled": row.enabled}
 
 @router.patch("/{memory_id}")
 async def update_memory(memory_id: UUID, body: MemoryUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
@@ -126,7 +131,7 @@ async def update_memory(memory_id: UUID, body: MemoryUpdate, db: AsyncSession = 
         if value is not None:
             if field == "content" and len(value.strip()) < 2:
                 raise HTTPException(status_code=422, detail="Memory content cannot be empty")
-            setattr(row, field, value.strip() if field == "content" else value)
+            setattr(row, field, encrypt_memory(value.strip()) if field == "content" else value)
     await db.commit()
     return {"id": str(row.id), "content": row.content, "category": row.category, "enabled": row.enabled}
 
