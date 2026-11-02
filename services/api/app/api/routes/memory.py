@@ -77,6 +77,7 @@ async def extract_memories(
             raise ValueError
     except (ValueError, TypeError):
         raise HTTPException(status_code=502, detail="Memory extraction returned invalid structured data") from None
+    await db.scalar(select(User).where(User.id == user.id).with_for_update())
     current_rows = list((await db.scalars(select(UserMemory).where(UserMemory.user_id == user.id))).all())
     current = len(current_rows)
     existing_content = {decrypt_memory(row.content) for row in current_rows}
@@ -117,6 +118,7 @@ async def create_memory(
     content = body.content.strip()
     if len(content) < 2:
         raise HTTPException(status_code=422, detail="Memory content cannot be empty")
+    await db.scalar(select(User).where(User.id == user.id).with_for_update())
     count = len(list((await db.scalars(select(UserMemory.id).where(UserMemory.user_id == user.id))).all()))
     if count >= 100:
         raise HTTPException(status_code=409, detail="Memory limit reached; delete unused memories first")
