@@ -13,6 +13,8 @@ mkdir -p "$OUT"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 PLAIN="$OUT/alap-$STAMP.dump"
 ENCRYPTED="$PLAIN.age"
+cleanup() { [[ ! -f "$PLAIN" ]] || { shred -u "$PLAIN" 2>/dev/null || rm -f "$PLAIN"; }; }
+trap cleanup EXIT
 docker compose --env-file "$ROOT/.env.prod" -f "$ROOT/docker-compose.prod.yml" exec -T postgres pg_dump -U alap -d alap --format=custom --no-owner > "$PLAIN"
 test -s "$PLAIN"
 age -r "$AGE_RECIPIENT" -o "$ENCRYPTED" "$PLAIN"
