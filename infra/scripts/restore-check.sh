@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 INPUT="${1:?usage: restore-check.sh path/to/alap-*.dump[.age]}"
 DUMP="$INPUT"
-RESTORE_DB="alap_restore_check_$(date -u +%s)_$"
+RESTORE_DB="alap_restore_check_$(date -u +%s)_${BASHPID}"
 C=(docker compose --env-file "$ROOT/.env.prod" -f "$ROOT/docker-compose.prod.yml" exec -T postgres)
 if [[ "$INPUT" == *.age ]]; then
   : "${AGE_IDENTITY:?Set AGE_IDENTITY to the protected private age identity file}"
