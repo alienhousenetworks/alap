@@ -43,3 +43,10 @@
 - Backups encrypted and restore-tested.
 - Dependency and container scanning in CI.
 - Incident response and rollback runbooks.
+
+
+## Long-term memory and generated media
+
+Long-term memory is disabled by default and requires explicit account consent. Saved memories are private to the owning account, injected into chat only while consent is enabled, treated as untrusted context, exportable and user-deletable. The extraction model is instructed to avoid sensitive categories, but model-assisted filtering is not infallible; the privacy notice must disclose this limitation. Turning consent off stops use in prompts but does not itself delete stored memories.
+
+Generated images/audio are stored in private S3-compatible storage. The API returns short-lived signed links, checks input prompts and generated images, applies per-user daily limits and a global monthly estimated spend cap. Provider-side spend limits and bucket lifecycle rules are required as additional safeguards. Account deletion attempts to delete object files before removing account records and fails closed when storage is unavailable.

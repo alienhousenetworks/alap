@@ -1,4 +1,5 @@
 import pytest
+from cryptography.fernet import Fernet
 from pydantic import ValidationError
 from app.core.config import Settings
 
@@ -7,12 +8,19 @@ def valid_production_settings(**overrides):
     values = {
         "app_env": "production",
         "jwt_secret": "r" * 48,
+        "memory_encryption_key": Fernet.generate_key().decode(),
         "database_url": "postgresql+asyncpg://alap:secret@db.internal:5432/alap",
         "cors_origins": "https://app.example.com,https://admin.example.com",
         "ai_default_provider": "anthropic",
         "ai_default_model": "claude-model",
         "openai_api_key": "moderation-key",
         "anthropic_api_key": "anthropic-key",
+        "object_storage_bucket": "alap-media",
+        "object_storage_access_key": "access",
+        "object_storage_secret_key": "secret",
+        "media_monthly_budget_usd": 100,
+        "media_image_estimated_cost_usd": 0.05,
+        "media_voice_estimated_cost_per_1k_chars_usd": 0.02,
     }
     values.update(overrides)
     return Settings(**values)
@@ -36,3 +44,8 @@ def test_production_configuration_requires_moderation_provider():
 def test_production_configuration_requires_selected_provider_key():
     with pytest.raises(ValidationError):
         valid_production_settings(anthropic_api_key="")
+
+
+def test_production_configuration_requires_valid_memory_encryption_key():
+    with pytest.raises(ValidationError):
+        valid_production_settings(memory_encryption_key="not-a-fernet-key")

@@ -58,3 +58,18 @@ The admin UI is not yet wired to these APIs. Keep the bootstrap command restrict
 5. For Flutter, use `--dart-define=API_BASE_URL=https://your-api-domain` (without the `/api/v1` suffix).
 
 Never commit real secrets. The Compose defaults are for local development only, not production deployment.
+
+
+## Memory and media APIs
+
+All routes below require a bearer access token and enforce owner scoping.
+
+- `GET /api/v1/memory/consent`, `PUT /api/v1/memory/consent`: inspect/update explicit memory opt-in.
+- `GET /api/v1/memory`, `POST /api/v1/memory`: list or add a memory (requires consent).
+- `PATCH /api/v1/memory/{memory_id}`, `DELETE /api/v1/memory/{memory_id}`, `DELETE /api/v1/memory`: update, delete one, or clear all.
+- `POST /api/v1/memory/extract/{conversation_id}`: extract up to five non-sensitive durable facts from the user's own messages; requires consent and is rate limited.
+- `POST /api/v1/media/images`: generate a moderated image and return a five-minute private signed URL.
+- `POST /api/v1/media/voice`: generate moderated text-to-speech and return a five-minute private signed URL.
+- `GET /api/v1/media`, `DELETE /api/v1/media/{asset_id}`: list or delete the authenticated user's generated assets.
+
+Media generation requires OpenAI generation/moderation credentials and private S3-compatible storage. Per-user daily quotas and a global monthly estimated-cost cap must be configured. The estimated costs are operator-provided safety values, not live provider billing reconciliation.

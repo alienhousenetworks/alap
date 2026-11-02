@@ -1,0 +1,118 @@
+# Single-host production topology. Prefer managed PostgreSQL/Redis for higher availability.
+name: alap
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      WEB_DOMAIN: ${WEB_DOMAIN:?set WEB_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?set ADMIN_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: {condition: service_healthy}
+      web: {condition: service_healthy}
+      admin: {condition: service_healthy}
+    restart: unless-stopped
+    networks: [edge, internal]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: alap
+      POSTGRES_USER: alap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alap -d alap"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${REDIS_PASSWORD:?set REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?set REDIS_PASSWORD}"
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [internal]
+
+  migrate:
+    build: {context: ../services/api}
+    env_file: [.env.prod]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://alap:${POSTGRES_PASSWORD}@postgres:5432/alap
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    command: ["alembic", "upgrade", "head"]
+    depends_on: {postgres: {condition: service_healthy}}
+    restart: "no"
+    networks: [internal]
+
+  api:
+    build: {context: ../services/api}
+    env_file: [.env.prod]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://alap:${POSTGRES_PASSWORD}@postgres:5432/alap
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      FORWARDED_ALLOW_IPS: "*"
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    networks: [internal]
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args: {NEXT_PUBLIC_API_URL: "https://${API_DOMAIN}"}
+    environment: {NODE_ENV: production, NEXT_TELEMETRY_DISABLED: "1", PORT: "3000"}
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks: [internal]
+
+  admin:
+    build: {context: .., dockerfile: apps/admin/Dockerfile}
+    environment: {NODE_ENV: production, NEXT_TELEMETRY_DISABLED: "1", PORT: "3001", ALAP_API_URL: "http://api:8000"}
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks: [internal]
+
+networks:
+  edge: {}
+  internal: {}
+volumes: {pg_data: {}, redis_data: {}, caddy_data: {}, caddy_config: {}}

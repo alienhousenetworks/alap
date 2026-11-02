@@ -1,6 +1,6 @@
 # Flutter app
 
-The app currently includes sign-in/sign-up, secure token storage with refresh rotation, character discovery, character creation, conversation history and AI chat API integration.
+The app currently includes sign-in/sign-up, secure token storage with refresh rotation, character discovery, character creation, conversation history and AI chat API integration, consent-controlled memory management, image generation previews and voice generation playback.
 
 ## Generate native projects
 
@@ -8,7 +8,7 @@ The repository tracks Dart application code and package configuration. Native pl
 
 ```bash
 cd apps/mobile
-flutter create --platforms=android,ios --org com.alap.app .
+flutter create --platforms=android,ios --org com.alienhousenetworks .
 flutter pub get
 ```
 
@@ -34,4 +34,4 @@ flutter test
 flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
 ```
 
-The current CI compiles a debug Android APK. Release signing, iOS archive, device QA, push notifications, universal links, accessibility audits and store compliance remain separate release gates.
+Quality CI compiles a debug Android APK. `.github/workflows/quality.yml` can create signed Android App Bundle and iOS IPA artifacts after signing secrets/profiles are configured; it does not submit them to stores. Device QA, push notifications, universal links, accessibility audits, privacy disclosures and store compliance remain release gates.

@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'core/network/api_client.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/characters/character_repository.dart';
 import 'features/chat/conversation_repository.dart';
+import 'features/memory/memory_repository.dart';
+import 'features/media/media_repository.dart';
 
 class AlapApp extends StatefulWidget {
   const AlapApp({super.key});
@@ -306,16 +310,66 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
   bool _sending = false;
+  final List<Map<String, dynamic>> _generatedMedia = [];
+  Map<String, dynamic>? _mediaUsage;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   String get _id => widget.conversation['id'] as String;
 
   @override
   void initState() { super.initState(); _load(); }
   @override
-  void dispose() { _input.dispose(); _scroll.dispose(); super.dispose(); }
+  void dispose() { _input.dispose(); _scroll.dispose(); unawaited(_audioPlayer.dispose()); super.dispose(); }
 
   Future<void> _load() async {
-    try { final data = await widget.repository.messages(_id); if (mounted) setState(() { _messages = data; _loading = false; }); }
-    catch (_) { if (mounted) setState(() => _loading = false); }
+    try {
+      final data = await widget.repository.messages(_id);
+      var media = <Map<String, dynamic>>[];
+      Map<String, dynamic>? usage;
+      try {
+        final mediaRepo = MediaRepository(widget.repository.api);
+        media = await mediaRepo.list();
+        usage = await mediaRepo.usage();
+      } catch (_) { /* Media outages must not block chat history. */ }
+      if (mounted) setState(() {
+        _messages = data;
+        _generatedMedia
+          ..clear()
+          ..addAll(media.where((item) => item['conversation_id'] == _id));
+        _mediaUsage = usage;
+        _loading = false;
+      });
+    } catch (_) { if (mounted) setState(() => _loading = false); }
+  }
+
+  Future<String?> _askForText(String title, String hint) async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: Text(title), content: TextField(controller: controller, autofocus: true, maxLines: 4, maxLength: 1000, decoration: InputDecoration(hintText: hint)),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Generate'))],
+    ));
+    controller.dispose();
+    return value;
+  }
+  Future<void> _refreshMediaUsage() async {
+    try { final usage = await MediaRepository(widget.repository.api).usage(); if (mounted) setState(() => _mediaUsage = usage); } catch (_) {}
+  }
+  Future<void> _deleteMedia(String id) async {
+    try {
+      await MediaRepository(widget.repository.api).delete(id);
+      if (mounted) setState(() => _generatedMedia.removeWhere((item) => item['id'] == id));
+    } catch (_) { if (mounted) _showError(context, 'Could not delete generated media.'); }
+  }
+  Future<void> _generateImage() async {
+    final prompt = await _askForText('Create an image', 'Describe the image…');
+    if (prompt == null || prompt.length < 4 || !mounted) return;
+    try { final item = await MediaRepository(widget.repository.api).image(prompt, _id); if (mounted) { setState(() => _generatedMedia.insert(0, item)); unawaited(_refreshMediaUsage()); } }
+    catch (_) { if (mounted) _showError(context, 'Image generation failed. Check media budget and try again.'); }
+  }
+  Future<void> _generateVoice() async {
+    final text = await _askForText('Generate voice audio', 'Enter the words to speak…');
+    if (text == null || text.isEmpty || !mounted) return;
+    try { final item = await MediaRepository(widget.repository.api).voice(text, _id); if (mounted) { setState(() => _generatedMedia.insert(0, item)); unawaited(_refreshMediaUsage()); } }
+    catch (_) { if (mounted) _showError(context, 'Voice generation failed. Check media budget and try again.'); }
   }
 
   Future<void> _send() async {
@@ -329,6 +383,12 @@ class _ChatScreenState extends State<ChatScreen> {
         Map<String, dynamic>.from(turn['user_message'] as Map),
         Map<String, dynamic>.from(turn['assistant_message'] as Map),
       ]));
+      if (mounted && _messages.length >= 6 && _messages.length % 6 == 0) {
+        try {
+          final memory = MemoryRepository(widget.repository.api);
+          if (await memory.consent()) await memory.extract(_id);
+        } catch (_) { /* Optional memory extraction must never block a successful chat turn. */ }
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       });
@@ -343,6 +403,12 @@ class _ChatScreenState extends State<ChatScreen> {
     body: Column(children: [
       Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
         controller: _scroll, padding: const EdgeInsets.all(16), children: [
+          if (_mediaUsage != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('Today: ${_mediaUsage!["images_used"]}/${_mediaUsage!["images_limit"]} images · ${_mediaUsage!["voice_characters_used"]}/${_mediaUsage!["voice_characters_limit"]} voice characters. Monthly estimated spend: ${_mediaUsage!["monthly_estimated_spend_usd"]} / ${_mediaUsage!["monthly_budget_usd"]}.', style: const TextStyle(color: Colors.white60, fontSize: 12))),
+          for (final media in _generatedMedia) Card(child: Padding(padding: const EdgeInsets.all(8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (media['kind'] == 'image') Image.network(media['url'] as String, errorBuilder: (_, __, ___) => const Text('Image link expired; reopen this chat to refresh it.')),
+            if (media['kind'] == 'voice') Row(children: [const Icon(Icons.graphic_eq), const SizedBox(width: 8), const Expanded(child: Text('Generated voice audio')), IconButton(onPressed: () => _audioPlayer.play(UrlSource(media['url'] as String)), icon: const Icon(Icons.play_circle_outline))]),
+            Align(alignment: Alignment.centerRight, child: IconButton(tooltip: 'Delete generated media', onPressed: () => _deleteMedia(media['id'] as String), icon: const Icon(Icons.delete_outline))),
+          ]))),
           for (final message in _messages) Align(
             alignment: message['role'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
@@ -356,7 +422,9 @@ class _ChatScreenState extends State<ChatScreen> {
           if (_sending) const Align(alignment: Alignment.centerLeft, child: Padding(padding: EdgeInsets.all(12), child: Text('Thinking…', style: TextStyle(color: Colors.white54)))),
         ],
       )),
-      SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12), child: Row(children: [
+      SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 12), child: Row(children: [
+        IconButton(tooltip: 'Generate image', onPressed: _sending ? null : _generateImage, icon: const Icon(Icons.image_outlined)),
+        IconButton(tooltip: 'Generate voice', onPressed: _sending ? null : _generateVoice, icon: const Icon(Icons.record_voice_over_outlined)),
         Expanded(child: TextField(controller: _input, minLines: 1, maxLines: 4, decoration: const InputDecoration(hintText: 'Write a message…'))),
         const SizedBox(width: 8), IconButton.filled(onPressed: _sending ? null : _send, icon: const Icon(Icons.send)),
       ]))),
@@ -415,6 +483,7 @@ class ProfileScreen extends StatelessWidget {
     const CircleAvatar(radius: 32, child: Icon(Icons.person_outline, size: 30)),
     const SizedBox(height: 18), const Text('Your ALAP account', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
     const SizedBox(height: 24),
+    ListTile(leading: const Icon(Icons.psychology_outlined), title: const Text('AI memory'), subtitle: const Text('Opt in, review, and delete what ALAP remembers.'), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MemorySettingsScreen(repository: MemoryRepository(auth.api))))),
     ListTile(leading: const Icon(Icons.logout), title: const Text('Sign out'), onTap: () async { await auth.logout(); onLogout(); }),
     ListTile(leading: const Icon(Icons.download_outlined), title: const Text('Export my data'), subtitle: const Text('Copy your account, characters and conversations as JSON.'), onTap: () => _exportData(context)),
     ListTile(
@@ -424,6 +493,71 @@ class ProfileScreen extends StatelessWidget {
       onTap: () => _deleteAccount(context),
     ),
   ]);
+}
+
+
+class MemorySettingsScreen extends StatefulWidget {
+  const MemorySettingsScreen({super.key, required this.repository});
+  final MemoryRepository repository;
+  @override
+  State<MemorySettingsScreen> createState() => _MemorySettingsScreenState();
+}
+class _MemorySettingsScreenState extends State<MemorySettingsScreen> {
+  bool? _enabled;
+  bool _busy = false;
+  List<Map<String, dynamic>> _items = [];
+  @override
+  void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    try { final enabled = await widget.repository.consent(); final items = await widget.repository.list(); if (mounted) setState(() { _enabled = enabled; _items = items; }); }
+    catch (_) { if (mounted) _showError(context, 'Could not load AI memory settings.'); }
+  }
+  Future<void> _toggle(bool value) async {
+    setState(() => _busy = true);
+    try { await widget.repository.setConsent(value); if (mounted) setState(() => _enabled = value); }
+    catch (_) { if (mounted) _showError(context, 'Could not update memory consent.'); }
+    finally { if (mounted) setState(() => _busy = false); }
+  }
+  Future<void> _add() async {
+    final controller = TextEditingController();
+    final content = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Add a memory'), content: TextField(controller: controller, autofocus: true, maxLength: 500, maxLines: 3, decoration: const InputDecoration(hintText: 'Example: I prefer concise explanations. Do not save passwords or sensitive details.')),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Save'))],
+    ));
+    controller.dispose();
+    if (content == null || content.length < 3) return;
+    try { await widget.repository.add(content, 'preference'); await _load(); }
+    catch (_) { if (mounted) _showError(context, 'Could not save this memory.'); }
+  }
+  Future<void> _edit(String id, String existing) async {
+    final controller = TextEditingController(text: existing);
+    final content = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Edit memory'), content: TextField(controller: controller, autofocus: true, maxLength: 500, maxLines: 3),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Save'))],
+    ));
+    controller.dispose();
+    if (content == null || content.length < 3) return;
+    try { await widget.repository.update(id, content); await _load(); }
+    catch (_) { if (mounted) _showError(context, 'Could not update this memory.'); }
+  }
+  Future<void> _delete(String id) async {
+    try { await widget.repository.delete(id); await _load(); }
+    catch (_) { if (mounted) _showError(context, 'Could not delete this memory.'); }
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('AI memory')),
+    floatingActionButton: _enabled == true ? FloatingActionButton(onPressed: _add, child: const Icon(Icons.add)) : null,
+    body: _enabled == null ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
+      SwitchListTile(value: _enabled!, onChanged: _busy ? null : _toggle, title: const Text('Allow ALAP to remember'), subtitle: const Text('When enabled, ALAP can extract non-sensitive preferences and context from your conversations. You can review and delete memories at any time.')),
+      if (_enabled!) ...[
+        const Text('Saved memories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        if (_items.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('No saved memories yet.')),
+        for (final item in _items) Card(child: ListTile(onTap: () => _edit(item['id'] as String, item['content'] as String), title: Text(item['content'] as String), subtitle: Text("${item['category']} · Tap to edit"), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => _delete(item['id'] as String)))),
+        TextButton.icon(onPressed: _items.isEmpty ? null : () async { await widget.repository.clear(); await _load(); }, icon: const Icon(Icons.delete_sweep_outlined), label: const Text('Delete all memories')),
+      ] else const Padding(padding: EdgeInsets.all(12), child: Text('Memory is off. Existing memories are retained but are not used in chats. Turn it on to use them again.')),
+    ]),
+  );
 }
 
 class _RetryState extends StatelessWidget {

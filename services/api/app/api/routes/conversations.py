@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.character import Character
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
+from app.services.memory import load_memory_context
 from app.schemas.conversation import ConversationCreate, ConversationResponse, MessageCreate, MessageResponse, ChatTurnResponse
 
 router = APIRouter(prefix="/conversations")
@@ -122,6 +123,8 @@ async def send_message(
             + character_profile
             + "\n</character_profile>"
         )
+        memory_context = await load_memory_context(db, user.id, user.memory_enabled)
+        persona += memory_context
         messages = [ChatMessage(role="system", content=persona)]
         messages.extend(
             ChatMessage(role=item.role, content=item.content)

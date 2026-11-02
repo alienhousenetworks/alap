@@ -1,0 +1,61 @@
+name: Deploy ALAP production
+'on':
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type DEPLOY to deploy the current main commit
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: alap-production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate deployment configuration
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PATH_ON_HOST: ${{ vars.DEPLOY_PATH }}
+          KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$HOST" && test -n "$USER" && test -n "$PATH_ON_HOST" && test -n "$KEY" && test -n "$KNOWN_HOSTS"
+          case "$PATH_ON_HOST" in /*) ;; *) echo 'DEPLOY_PATH must be absolute' >&2; exit 1;; esac
+          case "$PATH_ON_HOST" in *[!A-Za-z0-9_./-]*) echo 'DEPLOY_PATH contains unsupported characters' >&2; exit 1;; esac
+      - name: Start SSH agent
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          printf '%s\\n' "$SSH_PRIVATE_KEY" | ssh-add -
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+      - name: Configure pinned SSH host key
+        env:
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Sync source while preserving host secrets and backups
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PATH_ON_HOST: ${{ vars.DEPLOY_PATH }}
+        run: |
+          rsync -az --delete --exclude='.env.prod' --exclude='backups/' --exclude='.git/' ./ "$USER@$HOST:$PATH_ON_HOST/"
+      - name: Build, migrate, deploy and verify readiness
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PATH_ON_HOST: ${{ vars.DEPLOY_PATH }}
+        run: |
+          ssh "$USER@$HOST" "cd '$PATH_ON_HOST/infra' && test -f .env.prod && docker compose --env-file .env.prod -f docker-compose.prod.yml config -q && if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres pg_isready -U alap -d alap >/dev/null 2>&1; then bash scripts/backup.sh; else echo 'Initial deployment: no existing database backup required'; fi && docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d --remove-orphans"
+          ssh "$USER@$HOST" "cd '$PATH_ON_HOST/infra' && API_DOMAIN=\$(grep '^API_DOMAIN=' .env.prod | cut -d= -f2-) && for i in \$(seq 1 30); do curl -fsS \"https://\$API_DOMAIN/health/ready\" && exit 0; sleep 10; done; echo 'API readiness check timed out' >&2; docker compose --env-file .env.prod -f docker-compose.prod.yml ps; exit 1"
