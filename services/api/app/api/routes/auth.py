@@ -14,6 +14,7 @@ from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
 from app.models.memory import UserMemory
 from app.models.media_asset import MediaAsset
+from app.services.memory import decrypt_memory
 from app.schemas.auth import DeleteAccountRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
 from app.schemas.character import CharacterResponse
 from app.schemas.conversation import ConversationResponse, MessageResponse
@@ -143,6 +144,6 @@ async def export_account_data(
         "characters": [CharacterResponse.model_validate(item).model_dump(mode="json") for item in characters],
         "conversations": [ConversationResponse.model_validate(item).model_dump(mode="json") for item in conversations],
         "messages": [MessageResponse.model_validate(item).model_dump(mode="json") for item in messages],
-        "memories": [{"content": x.content, "category": x.category, "enabled": x.enabled, "created_at": x.created_at.isoformat() if x.created_at else None} for x in memories],
+        "memories": [{"content": decrypt_memory(x.content), "category": x.category, "enabled": x.enabled, "created_at": x.created_at.isoformat() if x.created_at else None} for x in memories],
         "media_assets": [{"kind": x.kind, "mime_type": x.mime_type, "size_bytes": x.size_bytes, "created_at": x.created_at.isoformat() if x.created_at else None} for x in media_assets],
     }
