@@ -2,7 +2,7 @@
 
 ## Long-term memory
 
-Memory is disabled by default and is explicitly opt-in per account. The Flutter profile exposes the consent switch, saved-memory list, manual memory creation and deletion. The API supports:
+Memory is disabled by default and is explicitly opt-in per account. Saved memory content is encrypted at rest with a Fernet key from MEMORY_ENCRYPTION_KEY; production refuses to start without a valid key. Keep the key in a secrets manager and back it up separately—losing it makes saved memories unreadable. Key rotation must decrypt and re-encrypt all records before replacing the active key; do not rotate by simply changing the environment value. The Flutter profile exposes the consent switch, saved-memory list, manual memory creation and deletion. The API supports:
 
 - `GET /api/v1/memory/consent` and `PUT /api/v1/memory/consent`
 - `GET /api/v1/memory`, `POST /api/v1/memory`
