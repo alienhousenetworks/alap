@@ -12,6 +12,8 @@ from app.models.auth_session import AuthSession
 from app.models.character import Character
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
+from app.models.media_asset import MediaAsset
+from app.services.media_storage import delete_user_objects
 from app.schemas.auth import DeleteAccountRequest, LoginRequest, RefreshRequest, RegisterRequest, TokenResponse, UserResponse
 from app.schemas.character import CharacterResponse
 from app.schemas.conversation import ConversationResponse, MessageResponse
@@ -98,6 +100,12 @@ async def me(user: User = Depends(get_current_user)):
 async def delete_account(body: DeleteAccountRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=403, detail="Password confirmation failed")
+    media_rows = list((await db.scalars(select(MediaAsset).where(MediaAsset.user_id == user.id))).all())
+    if media_rows:
+        try:
+            await delete_user_objects([item.object_key for item in media_rows])
+        except Exception:
+            raise HTTPException(status_code=503, detail="Account deletion is paused because private media could not be securely purged") from None
     await db.delete(user)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
