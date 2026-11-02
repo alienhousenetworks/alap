@@ -64,6 +64,9 @@ async def extract_memories(
         "content and category. category must be preference, goal, context, or other. Return [] if nothing is appropriate."
     )
     transcript = "\n".join(m.content[:1500] for m in reversed(messages))
+    transcript_safety = await provider.moderate(transcript)
+    if transcript_safety.flagged:
+        return {"created": 0, "memories": []}
     result = await provider.generate(model=settings.ai_default_model, messages=[
         ChatMessage(role="system", content=system_prompt),
         ChatMessage(role="user", content="<untrusted_conversation>\n" + transcript + "\n</untrusted_conversation>"),
@@ -133,7 +136,7 @@ async def update_memory(memory_id: UUID, body: MemoryUpdate, db: AsyncSession = 
                 raise HTTPException(status_code=422, detail="Memory content cannot be empty")
             setattr(row, field, encrypt_memory(value.strip()) if field == "content" else value)
     await db.commit()
-    return {"id": str(row.id), "content": row.content, "category": row.category, "enabled": row.enabled}
+    return {"id": str(row.id), "content": decrypt_memory(row.content), "category": row.category, "enabled": row.enabled}
 
 @router.delete("/{memory_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_memory(memory_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
